@@ -186,6 +186,45 @@ export const adminAPI = {
     } catch (error) {
       throw error.response?.data || error;
     }
+  },
+
+  // Get all food posts (including inactive) - Admin only
+  getAllFoods: async (filters = {}) => {
+    try {
+      const cleanFilters = Object.entries(filters).reduce((acc, [key, value]) => {
+        if (value !== '' && value !== null && value !== undefined) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {});
+      
+      const queryString = new URLSearchParams(cleanFilters).toString();
+      const url = queryString ? `/food/admin/all?${queryString}` : '/food/admin/all';
+      const response = await axiosInstance.get(url);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Get food statistics - Admin only
+  getFoodStats: async () => {
+    try {
+      const response = await axiosInstance.get('/food/admin/stats');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Delete any food post - Admin only
+  deleteFoodPost: async (id) => {
+    try {
+      const response = await axiosInstance.delete(`/food/admin/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   }
 };
 
