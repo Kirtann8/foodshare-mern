@@ -9,7 +9,10 @@ const {
   completeFood,
   getMyDonations,
   getMyClaims,
-  searchByLocation
+  searchByLocation,
+  getAllFoodsAdmin,
+  deleteFoodAdmin,
+  getFoodStats
 } = require('../controllers/foodController');
 
 const router = express.Router();
@@ -32,5 +35,10 @@ router.put('/:id/complete', protect, completeFood);
 // User-specific routes
 router.get('/my/donations', protect, getMyDonations);
 router.get('/my/claims', protect, getMyClaims);
+
+// Admin routes
+router.get('/admin/all', protect, authorize('admin'), getAllFoodsAdmin);
+router.get('/admin/stats', protect, authorize('admin'), getFoodStats);
+router.delete('/admin/:id', protect, authorize('admin'), deleteFoodAdmin);
 
 module.exports = router;

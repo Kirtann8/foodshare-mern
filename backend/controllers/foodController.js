@@ -331,3 +331,128 @@ exports.searchByLocation = async (req, res, next) => {
     next(err);
   }
 };
+
+// ADMIN ONLY ENDPOINTS
+
+// @desc    Get all food posts (including inactive) - Admin only
+// @route   GET /api/food/admin/all
+// @access  Private/Admin
+exports.getAllFoodsAdmin = async (req, res, next) => {
+  try {
+    const reqQuery = { ...req.query };
+
+    // Fields to exclude
+    const removeFields = ['select', 'sort', 'page', 'limit'];
+    removeFields.forEach(param => delete reqQuery[param]);
+
+    // Don't filter by isActive for admin - show all posts
+    let queryStr = JSON.stringify(reqQuery);
+    queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
+
+    let query = Food.find(JSON.parse(queryStr))
+      .populate('donor', 'name email phone')
+      .populate('claimedBy', 'name email phone');
+
+    // Sort
+    if (req.query.sort) {
+      const sortBy = req.query.sort.split(',').join(' ');
+      query = query.sort(sortBy);
+    } else {
+      query = query.sort('-createdAt');
+    }
+
+    // Pagination
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    const total = await Food.countDocuments(JSON.parse(queryStr));
+
+    query = query.skip(startIndex).limit(limit);
+
+    const foods = await query;
+
+    // Pagination result
+    const pagination = {};
+    if (endIndex < total) {
+      pagination.next = { page: page + 1, limit };
+    }
+    if (startIndex > 0) {
+      pagination.prev = { page: page - 1, limit };
+    }
+
+    res.status(200).json({
+      success: true,
+      count: foods.length,
+      total,
+      pagination,
+      data: foods
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Delete any food post - Admin only
+// @route   DELETE /api/food/admin/:id
+// @access  Private/Admin
+exports.deleteFoodAdmin = async (req, res, next) => {
+  try {
+    const food = await Food.findById(req.params.id);
+
+    if (!food) {
+      return next(new ErrorResponse(`Food not found with id of ${req.params.id}`, 404));
+    }
+
+    // Admin can delete any post
+    await food.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: 'Food post deleted successfully',
+      data: {}
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Get food statistics - Admin only
+// @route   GET /api/food/admin/stats
+// @access  Private/Admin
+exports.getFoodStats = async (req, res, next) => {
+  try {
+    const totalFoods = await Food.countDocuments();
+    const activeFoods = await Food.countDocuments({ isActive: true });
+    const availableFoods = await Food.countDocuments({ 
+      isActive: true, 
+      claimStatus: 'available' 
+    });
+    const claimedFoods = await Food.countDocuments({ 
+      claimStatus: 'claimed' 
+    });
+    const completedFoods = await Food.countDocuments({ 
+      claimStatus: 'completed' 
+    });
+
+    // Get category breakdown
+    const categoryStats = await Food.aggregate([
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalFoods,
+        activeFoods,
+        availableFoods,
+        claimedFoods,
+        completedFoods,
+        categoryStats
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};

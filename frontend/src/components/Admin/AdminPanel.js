@@ -6,6 +6,7 @@ import './Admin.css';
 
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
+  const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('users');
@@ -18,23 +19,35 @@ const AdminPanel = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       setError('');
+      
+      // Fetch users data
       const usersData = await adminAPI.getAllUsers();
       setUsers(usersData.data);
+      
+      // Fetch food stats
+      const foodStats = await adminAPI.getFoodStats();
       
       // Calculate stats
       const activeUserCount = usersData.data.filter(u => u.isActive).length;
       setStats({
         totalUsers: usersData.data.length,
         activeUsers: activeUserCount,
-        totalFoods: 0, // Can be populated from food API
-        availableFoods: 0
+        totalFoods: foodStats.data.totalFoods,
+        availableFoods: foodStats.data.availableFoods
       });
+
+      // Fetch all foods if on food tab
+      if (activeTab === 'foods') {
+        const foodsData = await adminAPI.getAllFoods({ limit: 50 });
+        setFoods(foodsData.data);
+      }
     } catch (err) {
       console.error('Error fetching admin data:', err);
       setError(err.error || 'Failed to fetch data. Make sure you are logged in as admin.');
@@ -71,6 +84,22 @@ const AdminPanel = () => {
       fetchData(); // Refresh data
     } catch (err) {
       setError(err.error || 'Failed to change user role');
+    }
+  };
+
+  const handleDeleteFoodPost = async (foodId, foodTitle) => {
+    if (!window.confirm(`Are you sure you want to delete "${foodTitle}"? This will permanently remove it from the database and cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await adminAPI.deleteFoodPost(foodId);
+      setError('');
+      // Show success and refresh
+      alert('Food post deleted successfully!');
+      fetchData(); // Refresh data
+    } catch (err) {
+      setError(err.error || 'Failed to delete food post');
     }
   };
 
@@ -123,13 +152,19 @@ const AdminPanel = () => {
           className={activeTab === 'users' ? 'active' : ''} 
           onClick={() => setActiveTab('users')}
         >
-          Users Management
+          👥 Users Management
+        </button>
+        <button 
+          className={activeTab === 'foods' ? 'active' : ''} 
+          onClick={() => setActiveTab('foods')}
+        >
+          🍕 Food Posts Management
         </button>
         <button 
           className={activeTab === 'overview' ? 'active' : ''} 
           onClick={() => setActiveTab('overview')}
         >
-          Overview
+          📊 Overview
         </button>
       </div>
 
@@ -199,6 +234,80 @@ const AdminPanel = () => {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Food Posts Management Tab */}
+      {activeTab === 'foods' && (
+        <div className="admin-content">
+          <div className="content-header">
+            <h2>Food Posts Management</h2>
+            <button className="btn btn-secondary" onClick={fetchData}>
+              🔄 Refresh
+            </button>
+          </div>
+
+          <div className="info-message">
+            <p>⚠️ <strong>Admin Power:</strong> You can delete any inappropriate or spam food posts. This action is permanent and will remove the post from the database.</p>
+          </div>
+
+          {foods.length === 0 ? (
+            <div className="no-results">
+              <p>No food posts found.</p>
+            </div>
+          ) : (
+            <div className="table-container">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Donor</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Location</th>
+                    <th>Posted</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {foods.map((food) => (
+                    <tr key={food._id}>
+                      <td>
+                        <strong>{food.title}</strong>
+                        {!food.isActive && <span className="inactive-badge">Inactive</span>}
+                      </td>
+                      <td>
+                        {food.donor?.name || 'Unknown'}
+                        <br />
+                        <small>{food.donor?.email}</small>
+                      </td>
+                      <td>{food.category}</td>
+                      <td>
+                        <span className={`status-badge ${food.claimStatus === 'available' ? 'available' : food.claimStatus === 'claimed' ? 'claimed' : 'completed'}`}>
+                          {food.claimStatus === 'available' && '🟢 Available'}
+                          {food.claimStatus === 'claimed' && '🟡 Claimed'}
+                          {food.claimStatus === 'completed' && '✅ Completed'}
+                        </span>
+                      </td>
+                      <td>
+                        {food.location?.city}, {food.location?.state}
+                      </td>
+                      <td>{new Date(food.createdAt).toLocaleDateString()}</td>
+                      <td className="action-buttons">
+                        <button
+                          className="btn-small btn-danger"
+                          onClick={() => handleDeleteFoodPost(food._id, food.title)}
+                          title="Delete Post"
+                        >
+                          🗑️ Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
