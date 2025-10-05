@@ -35,9 +35,61 @@ const FoodForm = () => {
   const [images, setImages] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const handleImageUpload = async (e) => {
+    try {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+      if (!validTypes.includes(file.type)) {
+        setError('Please upload only JPG, PNG or GIF images');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image size should be less than 5MB');
+        return;
+      }
+
+      setLoading(true);
+      setError('');
+
+      const formData = new FormData();
+      formData.append('image', file);
+
+      console.log('Uploading file:', file.name);
+
+      const response = await foodAPI.uploadImage(formData, (progressEvent) => {
+        const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        setUploadProgress(progress);
+        console.log('Upload progress:', progress);
+      });
+
+      if (response.success) {
+        setImages(prevImages => [...prevImages, response.data.url]);
+        setError('');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      console.error('Error response:', err.response);
+      const errorMessage = err.response?.data?.message || err.message || 'Error uploading image';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const removeImage = (indexToRemove) => {
+    setImages(prevImages => prevImages.filter((_, index) => index !== indexToRemove));
+  };
 
   const onChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, checked } = e.target;
     
     if (name.includes('location.')) {
       const field = name.split('.')[1];
@@ -60,16 +112,6 @@ const FoodForm = () => {
     } else {
       setFormData({ ...formData, [name]: value });
     }
-  };
-
-  const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length > 5) {
-      setError('You can upload maximum 5 images');
-      return;
-    }
-    setImages(files);
-    setError('');
   };
 
   const onSubmit = async (e) => {
@@ -97,9 +139,9 @@ const FoodForm = () => {
       data.append('dietaryInfo[isGlutenFree]', formData.dietaryInfo.isGlutenFree);
       data.append('dietaryInfo[containsNuts]', formData.dietaryInfo.containsNuts);
       
-      // Append images
-      images.forEach((image) => {
-        data.append('images', image);
+      // Append image URLs (already uploaded to Cloudinary)
+      images.forEach((imageUrl, index) => {
+        data.append(`images[${index}]`, imageUrl);
       });
 
       await foodAPI.createFood(data);
@@ -148,6 +190,44 @@ const FoodForm = () => {
             />
           </div>
 
+          <div className="form-group">
+            <label htmlFor="image">Food Images</label>
+            <input
+              type="file"
+              id="image"
+              name="image"
+              onChange={handleImageUpload}
+              accept="image/*"
+              className="file-input"
+            />
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="upload-progress">
+                <div 
+                  className="progress-bar" 
+                  style={{ width: `${uploadProgress}%` }}
+                >
+                  {uploadProgress}%
+                </div>
+              </div>
+            )}
+            {images.length > 0 && (
+              <div className="image-preview-container">
+                {images.map((url, index) => (
+                  <div key={index} className="image-preview">
+                    <img src={url} alt={`Food ${index + 1}`} />
+                    <button 
+                      type="button" 
+                      onClick={() => removeImage(index)}
+                      className="remove-image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="category">Category *</label>
@@ -179,19 +259,6 @@ const FoodForm = () => {
                 placeholder="e.g., 5 servings, 2kg"
               />
             </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="images">Food Images (Max 5)</label>
-            <input
-              type="file"
-              id="images"
-              name="images"
-              onChange={handleImageChange}
-              accept="image/*"
-              multiple
-            />
-            <small>Accepted formats: JPEG, PNG, GIF, WebP (Max 5MB each)</small>
           </div>
 
           <h3>Location Details</h3>

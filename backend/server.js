@@ -1,9 +1,10 @@
-const express = require('express');
-const dotenv = require('dotenv');
-const cors = require('cors');
-const path = require('path');
-const connectDB = require('./config/db');
-const errorHandler = require('./middleware/error');
+import express from 'express';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import connectDB from './config/db.js';
+import errorHandler from './middleware/error.js';
 
 // Load env vars
 dotenv.config();
@@ -12,8 +13,9 @@ dotenv.config();
 connectDB();
 
 // Route files
-const auth = require('./routes/auth');
-const food = require('./routes/food');
+import authRoutes from './routes/auth.js';
+import foodRoutes from './routes/food.js';
+import uploadRoutes from './routes/uploadRoute.js';
 
 const app = express();
 
@@ -27,12 +29,16 @@ app.use(cors({
   credentials: true
 }));
 
+// Get the directory name
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 // Set static folder for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Mount routers
-app.use('/api/auth', auth);
-app.use('/api/food', food);
+app.use('/api/auth', authRoutes);
+app.use('/api/food', foodRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -59,4 +65,4 @@ process.on('unhandledRejection', (err, promise) => {
   server.close(() => process.exit(1));
 });
 
-module.exports = app;
+export default app;

@@ -1,10 +1,10 @@
-const User = require('../models/User');
-const ErrorResponse = require('../config/ErrorResponse');
+import User from '../models/User.js';
+import ErrorResponse from '../config/ErrorResponse.js';
 
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
-exports.register = async (req, res, next) => {
+export const register = async (req, res, next) => {
   try {
     const { name, email, password, role, phone, address } = req.body;
 
@@ -33,7 +33,7 @@ exports.register = async (req, res, next) => {
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
-exports.login = async (req, res, next) => {
+export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -70,7 +70,7 @@ exports.login = async (req, res, next) => {
 // @desc    Get current logged in user
 // @route   GET /api/auth/me
 // @access  Private
-exports.getMe = async (req, res, next) => {
+export const getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
 
@@ -86,7 +86,7 @@ exports.getMe = async (req, res, next) => {
 // @desc    Update user details
 // @route   PUT /api/auth/updatedetails
 // @access  Private
-exports.updateDetails = async (req, res, next) => {
+export const updateDetails = async (req, res, next) => {
   try {
     const fieldsToUpdate = {
       name: req.body.name,
@@ -112,7 +112,7 @@ exports.updateDetails = async (req, res, next) => {
 // @desc    Update password
 // @route   PUT /api/auth/updatepassword
 // @access  Private
-exports.updatePassword = async (req, res, next) => {
+export const updatePassword = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id).select('+password');
 
@@ -133,7 +133,7 @@ exports.updatePassword = async (req, res, next) => {
 // @desc    Get all users (Admin only)
 // @route   GET /api/auth/users
 // @access  Private/Admin
-exports.getUsers = async (req, res, next) => {
+export const getUsers = async (req, res, next) => {
   try {
     const users = await User.find();
 
@@ -150,7 +150,7 @@ exports.getUsers = async (req, res, next) => {
 // @desc    Get single user (Admin only)
 // @route   GET /api/auth/users/:id
 // @access  Private/Admin
-exports.getUser = async (req, res, next) => {
+export const getUser = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
 
@@ -170,7 +170,7 @@ exports.getUser = async (req, res, next) => {
 // @desc    Update user (Admin only)
 // @route   PUT /api/auth/users/:id
 // @access  Private/Admin
-exports.updateUser = async (req, res, next) => {
+export const updateUser = async (req, res, next) => {
   try {
     const user = await User.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
@@ -193,7 +193,7 @@ exports.updateUser = async (req, res, next) => {
 // @desc    Delete user (Admin only)
 // @route   DELETE /api/auth/users/:id
 // @access  Private/Admin
-exports.deleteUser = async (req, res, next) => {
+export const deleteUser = async (req, res, next) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
 

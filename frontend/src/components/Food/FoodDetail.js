@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
 import foodAPI from '../../services/api';
@@ -15,11 +15,7 @@ const FoodDetail = () => {
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    fetchFoodDetail();
-  }, [id]);
-
-  const fetchFoodDetail = async () => {
+  const fetchFoodDetail = useCallback(async () => {
     try {
       setLoading(true);
       const data = await foodAPI.getFood(id);
@@ -29,7 +25,11 @@ const FoodDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchFoodDetail();
+  }, [fetchFoodDetail]);
 
   const handleClaim = async () => {
     if (!isAuthenticated) {
@@ -119,7 +119,7 @@ const FoodDetail = () => {
             {food.images.map((image, index) => (
               <img
                 key={index}
-                src={`${process.env.REACT_APP_API_URL.replace('/api', '')}${image}`}
+                src={image.startsWith('http') ? image : `${process.env.REACT_APP_API_URL.replace('/api', '')}${image}`}
                 alt={`${food.title} ${index + 1}`}
                 onError={(e) => {
                   e.target.src = 'https://via.placeholder.com/600x400?text=Food+Image';

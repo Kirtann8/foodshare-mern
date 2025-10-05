@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import AuthContext from '../../context/AuthContext';
 import foodAPI from '../../services/api';
 import FoodCard from './FoodCard';
 import Loading from '../Common/Loading';
 import './Food.css';
 
 const MyDonations = () => {
-  const { user } = useContext(AuthContext);
   const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
