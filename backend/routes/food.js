@@ -1,5 +1,5 @@
-const express = require('express');
-const {
+import express from 'express';
+import {
   getFoods,
   getFood,
   createFood,
@@ -13,12 +13,12 @@ const {
   getAllFoodsAdmin,
   deleteFoodAdmin,
   getFoodStats
-} = require('../controllers/foodController');
+} from '../controllers/foodController.js';
 
 const router = express.Router();
 
-const { protect, authorize } = require('../middleware/auth');
-const { upload, handleMulterError } = require('../middleware/upload');
+import { protect, authorize } from '../middleware/auth.js';
+import { upload, handleMulterError } from '../middleware/upload.js';
 
 // Public routes
 router.get('/', getFoods);
@@ -41,4 +41,4 @@ router.get('/admin/all', protect, authorize('admin'), getAllFoodsAdmin);
 router.get('/admin/stats', protect, authorize('admin'), getFoodStats);
 router.delete('/admin/:id', protect, authorize('admin'), deleteFoodAdmin);
 
-module.exports = router;
+export default router;

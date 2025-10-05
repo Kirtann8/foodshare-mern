@@ -1,11 +1,10 @@
-const Food = require('../models/Food');
-const ErrorResponse = require('../config/ErrorResponse');
-const path = require('path');
+import Food from '../models/Food.js';
+import ErrorResponse from '../config/ErrorResponse.js';
 
 // @desc    Get all food posts
 // @route   GET /api/food
 // @access  Public
-exports.getFoods = async (req, res, next) => {
+export const getFoods = async (req, res, next) => {
   try {
     let query;
 
@@ -85,7 +84,7 @@ exports.getFoods = async (req, res, next) => {
 // @desc    Get single food post
 // @route   GET /api/food/:id
 // @access  Public
-exports.getFood = async (req, res, next) => {
+export const getFood = async (req, res, next) => {
   try {
     const food = await Food.findById(req.params.id)
       .populate('donor', 'name email phone address')
@@ -111,7 +110,7 @@ exports.getFood = async (req, res, next) => {
 // @desc    Create new food post
 // @route   POST /api/food
 // @access  Private
-exports.createFood = async (req, res, next) => {
+export const createFood = async (req, res, next) => {
   try {
     // Add user to req.body
     req.body.donor = req.user.id;
@@ -135,7 +134,7 @@ exports.createFood = async (req, res, next) => {
 // @desc    Update food post
 // @route   PUT /api/food/:id
 // @access  Private
-exports.updateFood = async (req, res, next) => {
+export const updateFood = async (req, res, next) => {
   try {
     let food = await Food.findById(req.params.id);
 
@@ -170,7 +169,7 @@ exports.updateFood = async (req, res, next) => {
 // @desc    Delete food post
 // @route   DELETE /api/food/:id
 // @access  Private
-exports.deleteFood = async (req, res, next) => {
+export const deleteFood = async (req, res, next) => {
   try {
     const food = await Food.findById(req.params.id);
 
@@ -197,7 +196,7 @@ exports.deleteFood = async (req, res, next) => {
 // @desc    Claim food post
 // @route   PUT /api/food/:id/claim
 // @access  Private
-exports.claimFood = async (req, res, next) => {
+export const claimFood = async (req, res, next) => {
   try {
     const food = await Food.findById(req.params.id);
 
@@ -234,7 +233,7 @@ exports.claimFood = async (req, res, next) => {
 // @desc    Mark food as completed
 // @route   PUT /api/food/:id/complete
 // @access  Private
-exports.completeFood = async (req, res, next) => {
+export const completeFood = async (req, res, next) => {
   try {
     const food = await Food.findById(req.params.id);
 
@@ -262,7 +261,7 @@ exports.completeFood = async (req, res, next) => {
 // @desc    Get my food posts (as donor)
 // @route   GET /api/food/my/donations
 // @access  Private
-exports.getMyDonations = async (req, res, next) => {
+export const getMyDonations = async (req, res, next) => {
   try {
     const foods = await Food.find({ donor: req.user.id })
       .populate('claimedBy', 'name email phone')
@@ -281,7 +280,7 @@ exports.getMyDonations = async (req, res, next) => {
 // @desc    Get my claimed food posts
 // @route   GET /api/food/my/claims
 // @access  Private
-exports.getMyClaims = async (req, res, next) => {
+export const getMyClaims = async (req, res, next) => {
   try {
     const foods = await Food.find({ claimedBy: req.user.id })
       .populate('donor', 'name email phone address')
@@ -300,7 +299,7 @@ exports.getMyClaims = async (req, res, next) => {
 // @desc    Search food by location
 // @route   GET /api/food/search/location
 // @access  Public
-exports.searchByLocation = async (req, res, next) => {
+export const searchByLocation = async (req, res, next) => {
   try {
     const { city, state } = req.query;
 
@@ -337,7 +336,7 @@ exports.searchByLocation = async (req, res, next) => {
 // @desc    Get all food posts (including inactive) - Admin only
 // @route   GET /api/food/admin/all
 // @access  Private/Admin
-exports.getAllFoodsAdmin = async (req, res, next) => {
+export const getAllFoodsAdmin = async (req, res, next) => {
   try {
     const reqQuery = { ...req.query };
 
@@ -396,7 +395,7 @@ exports.getAllFoodsAdmin = async (req, res, next) => {
 // @desc    Delete any food post - Admin only
 // @route   DELETE /api/food/admin/:id
 // @access  Private/Admin
-exports.deleteFoodAdmin = async (req, res, next) => {
+export const deleteFoodAdmin = async (req, res, next) => {
   try {
     const food = await Food.findById(req.params.id);
 
@@ -420,7 +419,7 @@ exports.deleteFoodAdmin = async (req, res, next) => {
 // @desc    Get food statistics - Admin only
 // @route   GET /api/food/admin/stats
 // @access  Private/Admin
-exports.getFoodStats = async (req, res, next) => {
+export const getFoodStats = async (req, res, next) => {
   try {
     const totalFoods = await Food.countDocuments();
     const activeFoods = await Food.countDocuments({ isActive: true });

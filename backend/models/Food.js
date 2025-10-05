@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const FoodSchema = new mongoose.Schema({
   title: {
@@ -124,4 +124,4 @@ FoodSchema.pre('save', function(next) {
   next();
 });
 
-module.exports = mongoose.model('Food', FoodSchema);
+export default mongoose.model('Food', FoodSchema);

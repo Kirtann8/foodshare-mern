@@ -1,6 +1,6 @@
-const multer = require('multer');
-const path = require('path');
-const ErrorResponse = require('../config/ErrorResponse');
+import multer from 'multer';
+import path from 'path';
+import ErrorResponse from '../config/ErrorResponse.js';
 
 // Set storage engine
 const storage = multer.diskStorage({
@@ -57,4 +57,4 @@ const handleMulterError = (err, req, res, next) => {
   next(err);
 };
 
-module.exports = { upload, handleMulterError };
+export { upload, handleMulterError };

@@ -4,7 +4,7 @@ import AuthContext from '../../context/AuthContext';
 import './Auth.css';
 
 const Profile = () => {
-  const { user, updateProfile, logout } = useContext(AuthContext);
+  const { user, updateProfile } = useContext(AuthContext);
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({

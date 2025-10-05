@@ -1,9 +1,11 @@
 // Script to create an admin user
 // Run this from backend directory: node createAdmin.js
 
-require('dotenv').config();
-const mongoose = require('mongoose');
-const User = require('./models/User');
+import dotenv from 'dotenv';
+import mongoose from 'mongoose';
+import User from './models/User.js';
+
+dotenv.config();
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/FoodShare', {

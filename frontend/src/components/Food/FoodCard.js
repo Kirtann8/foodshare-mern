@@ -26,7 +26,7 @@ const FoodCard = ({ food }) => {
       <div className="food-card-image">
         {food.images && food.images.length > 0 ? (
           <img 
-            src={`${process.env.REACT_APP_API_URL.replace('/api', '')}${food.images[0]}`} 
+            src={food.images[0].startsWith('http') ? food.images[0] : `${process.env.REACT_APP_API_URL.replace('/api', '')}${food.images[0]}`} 
             alt={food.title}
             onError={(e) => {
               e.target.src = 'https://via.placeholder.com/300x200?text=Food+Image';

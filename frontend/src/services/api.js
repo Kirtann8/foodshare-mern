@@ -132,6 +132,21 @@ export const foodAPI = {
     }
   },
 
+  // Upload image to Cloudinary
+  uploadImage: async (formData, onUploadProgress) => {
+    try {
+      const response = await axiosInstance.post('/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
   // Search by location
   searchByLocation: async (city, state) => {
     try {
