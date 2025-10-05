@@ -243,4 +243,17 @@ export const adminAPI = {
   }
 };
 
+// Auth API services
+export const authAPI = {
+  // Google OAuth login/register
+  googleAuth: async (googleData) => {
+    try {
+      const response = await axiosInstance.post('/auth/google', googleData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  }
+};
+
 export default foodAPI;

@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
 import foodAPI from '../../services/api';
 import Loading from '../Common/Loading';
-import './Food.css';
 
 const FoodDetail = () => {
   const { id } = useParams();
@@ -94,20 +93,20 @@ const FoodDetail = () => {
   };
 
   if (loading) return <Loading />;
-  if (error) return <div className="error-message">{error}</div>;
-  if (!food) return <div className="error-message">Food not found</div>;
+  if (error) return <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">{error}</div>;
+  if (!food) return <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">Food not found</div>;
 
   const isDonor = user && user.id === food.donor._id;
   const canClaim = isAuthenticated && food.claimStatus === 'available' && !isDonor;
   const canComplete = isDonor && food.claimStatus === 'claimed';
 
   return (
-    <div className="food-detail-container">
-      <div className="food-detail-card">
-        <div className="detail-header">
-          <h1>{food.title}</h1>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div className="p-4 sm:p-6 lg:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-200">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800">{food.title}</h1>
           <span 
-            className="status-badge-large" 
+            className="px-4 sm:px-6 py-2 sm:py-3 rounded-lg text-xs sm:text-sm font-semibold uppercase text-white whitespace-nowrap" 
             style={{ backgroundColor: getStatusColor(food.claimStatus) }}
           >
             {food.claimStatus}
@@ -115,7 +114,7 @@ const FoodDetail = () => {
         </div>
 
         {food.images && food.images.length > 0 && (
-          <div className="detail-images">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 p-4 sm:p-6 lg:p-8 bg-gray-50">
             {food.images.map((image, index) => (
               <img
                 key={index}
@@ -124,100 +123,101 @@ const FoodDetail = () => {
                 onError={(e) => {
                   e.target.src = 'https://via.placeholder.com/600x400?text=Food+Image';
                 }}
+                className="w-full h-48 sm:h-56 lg:h-64 object-cover rounded-lg"
               />
             ))}
           </div>
         )}
 
-        <div className="detail-content">
-          <section className="detail-section">
-            <h2>Description</h2>
-            <p>{food.description}</p>
+        <div className="p-4 sm:p-6 lg:p-8">
+          <section className="mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Description</h2>
+            <p className="text-sm sm:text-base text-gray-700 leading-relaxed">{food.description}</p>
           </section>
 
-          <section className="detail-section">
-            <h2>Details</h2>
-            <div className="detail-grid">
-              <div className="detail-item">
-                <strong>Category:</strong>
-                <span>{food.category}</span>
+          <section className="mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Details</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              <div className="flex flex-col gap-1">
+                <strong className="text-gray-600 text-xs sm:text-sm font-semibold">Category:</strong>
+                <span className="text-gray-800 text-sm sm:text-base">{food.category}</span>
               </div>
-              <div className="detail-item">
-                <strong>Quantity:</strong>
-                <span>{food.quantity}</span>
+              <div className="flex flex-col gap-1">
+                <strong className="text-gray-600 text-xs sm:text-sm font-semibold">Quantity:</strong>
+                <span className="text-gray-800 text-sm sm:text-base">{food.quantity}</span>
               </div>
-              <div className="detail-item">
-                <strong>Expiry Date:</strong>
-                <span>{formatDate(food.expiryDate)}</span>
+              <div className="flex flex-col gap-1">
+                <strong className="text-gray-600 text-xs sm:text-sm font-semibold">Expiry Date:</strong>
+                <span className="text-gray-800 text-xs sm:text-sm">{formatDate(food.expiryDate)}</span>
               </div>
-              <div className="detail-item">
-                <strong>Views:</strong>
-                <span>{food.views}</span>
+              <div className="flex flex-col gap-1">
+                <strong className="text-gray-600 text-xs sm:text-sm font-semibold">Views:</strong>
+                <span className="text-gray-800 text-sm sm:text-base">{food.views}</span>
               </div>
             </div>
           </section>
 
-          <section className="detail-section">
-            <h2>Pickup Information</h2>
-            <div className="detail-grid">
-              <div className="detail-item">
-                <strong>Start Time:</strong>
-                <span>{formatDate(food.pickupTiming.startTime)}</span>
+          <section className="mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Pickup Information</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              <div className="flex flex-col gap-1">
+                <strong className="text-gray-600 text-xs sm:text-sm font-semibold">Start Time:</strong>
+                <span className="text-gray-800 text-xs sm:text-base">{formatDate(food.pickupTiming.startTime)}</span>
               </div>
-              <div className="detail-item">
-                <strong>End Time:</strong>
-                <span>{formatDate(food.pickupTiming.endTime)}</span>
+              <div className="flex flex-col gap-1">
+                <strong className="text-gray-600 text-xs sm:text-sm font-semibold">End Time:</strong>
+                <span className="text-gray-800 text-xs sm:text-base">{formatDate(food.pickupTiming.endTime)}</span>
               </div>
             </div>
           </section>
 
-          <section className="detail-section">
-            <h2>Location</h2>
-            <div className="location-info">
-              <p>{food.location.address}</p>
+          <section className="mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Location</h2>
+            <div className="text-sm sm:text-base text-gray-700">
+              <p className="mb-2">{food.location.address}</p>
               <p>{food.location.city}, {food.location.state} {food.location.zipCode}</p>
             </div>
           </section>
 
-          <section className="detail-section">
-            <h2>Dietary Information</h2>
-            <div className="dietary-badges">
-              {food.dietaryInfo?.isVegetarian && <span className="dietary-badge">🥬 Vegetarian</span>}
-              {food.dietaryInfo?.isVegan && <span className="dietary-badge">🌱 Vegan</span>}
-              {food.dietaryInfo?.isGlutenFree && <span className="dietary-badge">🌾 Gluten-Free</span>}
-              {food.dietaryInfo?.containsNuts && <span className="dietary-badge">🥜 Contains Nuts</span>}
+          <section className="mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Dietary Information</h2>
+            <div className="flex flex-wrap gap-2 sm:gap-3">
+              {food.dietaryInfo?.isVegetarian && <span className="bg-green-50 text-green-700 px-2 sm:px-3 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium">🥬 Vegetarian</span>}
+              {food.dietaryInfo?.isVegan && <span className="bg-green-50 text-green-700 px-2 sm:px-3 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium">🌱 Vegan</span>}
+              {food.dietaryInfo?.isGlutenFree && <span className="bg-green-50 text-green-700 px-2 sm:px-3 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium">🌾 Gluten-Free</span>}
+              {food.dietaryInfo?.containsNuts && <span className="bg-green-50 text-green-700 px-2 sm:px-3 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium">🥜 Contains Nuts</span>}
               {!food.dietaryInfo?.isVegetarian && !food.dietaryInfo?.isVegan && 
                !food.dietaryInfo?.isGlutenFree && !food.dietaryInfo?.containsNuts && (
-                <span>No special dietary information</span>
+                <span className="text-sm sm:text-base text-gray-600">No special dietary information</span>
               )}
             </div>
           </section>
 
-          <section className="detail-section">
-            <h2>Donor Information</h2>
-            <div className="donor-info">
-              <p><strong>Name:</strong> {food.donor.name}</p>
-              <p><strong>Email:</strong> {food.donor.email}</p>
-              {food.donor.phone && <p><strong>Phone:</strong> {food.donor.phone}</p>}
+          <section className="mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Donor Information</h2>
+            <div className="text-sm sm:text-base text-gray-700">
+              <p className="mb-2"><strong>Name:</strong> {food.donor.name}</p>
+              <p className="mb-2"><strong>Email:</strong> {food.donor.email}</p>
+              {food.donor.phone && <p className="mb-2"><strong>Phone:</strong> {food.donor.phone}</p>}
             </div>
           </section>
 
           {food.claimedBy && (
-            <section className="detail-section">
-              <h2>Claimed By</h2>
-              <div className="claimer-info">
-                <p><strong>Name:</strong> {food.claimedBy.name}</p>
-                <p><strong>Email:</strong> {food.claimedBy.email}</p>
-                {food.claimedBy.phone && <p><strong>Phone:</strong> {food.claimedBy.phone}</p>}
-                <p><strong>Claimed At:</strong> {formatDate(food.claimedAt)}</p>
+            <section className="mb-6 sm:mb-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Claimed By</h2>
+              <div className="text-sm sm:text-base text-gray-700">
+                <p className="mb-2"><strong>Name:</strong> {food.claimedBy.name}</p>
+                <p className="mb-2"><strong>Email:</strong> {food.claimedBy.email}</p>
+                {food.claimedBy.phone && <p className="mb-2"><strong>Phone:</strong> {food.claimedBy.phone}</p>}
+                <p className="mb-2"><strong>Claimed At:</strong> {formatDate(food.claimedAt)}</p>
               </div>
             </section>
           )}
 
-          <div className="detail-actions">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-gray-200">
             {canClaim && (
               <button 
-                className="btn btn-primary" 
+                className="w-full sm:w-auto bg-green-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-green-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base" 
                 onClick={handleClaim}
                 disabled={actionLoading}
               >
@@ -227,7 +227,7 @@ const FoodDetail = () => {
 
             {canComplete && (
               <button 
-                className="btn btn-success" 
+                className="w-full sm:w-auto bg-blue-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base" 
                 onClick={handleComplete}
                 disabled={actionLoading}
               >
@@ -237,16 +237,16 @@ const FoodDetail = () => {
 
             {isDonor && (
               <>
-                <Link to={`/food/edit/${food._id}`} className="btn btn-secondary">
+                <Link to={`/food/edit/${food._id}`} className="w-full sm:w-auto text-center bg-gray-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-gray-600 transition-all duration-300 no-underline text-sm sm:text-base">
                   Edit
                 </Link>
-                <button className="btn btn-danger" onClick={handleDelete}>
+                <button className="w-full sm:w-auto bg-red-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-red-600 transition-all duration-300 text-sm sm:text-base" onClick={handleDelete}>
                   Delete
                 </button>
               </>
             )}
 
-            <button className="btn btn-outline" onClick={() => navigate(-1)}>
+            <button className="w-full sm:w-auto border-2 border-gray-500 text-gray-700 px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-gray-500 hover:text-white transition-all duration-300 text-sm sm:text-base" onClick={() => navigate(-1)}>
               Back
             </button>
           </div>
