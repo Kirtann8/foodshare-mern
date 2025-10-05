@@ -22,9 +22,17 @@ const UserSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Please add a password'],
+    required: function() {
+      // Password is required only if googleId is not present
+      return !this.googleId;
+    },
     minlength: [6, 'Password must be at least 6 characters'],
     select: false
+  },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true // Allows null values to not be unique
   },
   role: {
     type: String,
@@ -66,7 +74,8 @@ UserSchema.index({ isActive: 1 });
 
 // Encrypt password using bcrypt before saving
 UserSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
+  // Skip password hashing if password is not modified or doesn't exist (OAuth user)
+  if (!this.isModified('password') || !this.password) {
     next();
   }
   

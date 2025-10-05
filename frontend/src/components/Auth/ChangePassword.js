@@ -1,7 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
-import './Auth.css';
 
 const ChangePassword = () => {
   const { changePassword } = useContext(AuthContext);
@@ -57,17 +56,17 @@ const ChangePassword = () => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h2>Change Password</h2>
-        <p className="auth-subtitle">Update your account password</p>
+    <div className="min-h-[80vh] flex items-center justify-center px-4">
+      <div className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full">
+        <h2 className="text-3xl font-bold text-center text-gray-800 mb-2">Change Password</h2>
+        <p className="text-center text-gray-600 mb-6">Update your account password</p>
         
-        {message && <div className="success-message">{message}</div>}
-        {error && <div className="error-message">{error}</div>}
+        {message && <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-4">{message}</div>}
+        {error && <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-4">{error}</div>}
         
         <form onSubmit={onSubmit}>
-          <div className="form-group">
-            <label htmlFor="currentPassword">Current Password</label>
+          <div className="mb-4">
+            <label htmlFor="currentPassword" className="block text-gray-700 font-medium mb-2">Current Password</label>
             <input
               type="password"
               id="currentPassword"
@@ -76,11 +75,12 @@ const ChangePassword = () => {
               onChange={onChange}
               required
               placeholder="Enter current password"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="newPassword">New Password</label>
+          <div className="mb-4">
+            <label htmlFor="newPassword" className="block text-gray-700 font-medium mb-2">New Password</label>
             <input
               type="password"
               id="newPassword"
@@ -90,11 +90,12 @@ const ChangePassword = () => {
               required
               minLength="6"
               placeholder="Enter new password"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
             />
           </div>
           
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm New Password</label>
+          <div className="mb-6">
+            <label htmlFor="confirmPassword" className="block text-gray-700 font-medium mb-2">Confirm New Password</label>
             <input
               type="password"
               id="confirmPassword"
@@ -104,16 +105,17 @@ const ChangePassword = () => {
               required
               minLength="6"
               placeholder="Re-enter new password"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
             />
           </div>
           
-          <div className="form-actions">
-            <button type="submit" className="btn btn-primary" disabled={loading}>
+          <div className="flex gap-4 flex-wrap">
+            <button type="submit" className="flex-1 bg-green-500 text-white font-semibold py-3 rounded-lg hover:bg-green-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled={loading}>
               {loading ? 'Changing Password...' : 'Change Password'}
             </button>
             <button 
               type="button" 
-              className="btn btn-secondary"
+              className="flex-1 bg-gray-500 text-white font-semibold py-3 rounded-lg hover:bg-gray-600 transition-all duration-300"
               onClick={() => navigate('/profile')}
             >
               Cancel

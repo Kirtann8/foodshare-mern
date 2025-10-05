@@ -117,6 +117,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Google OAuth login/register
+  const googleLogin = async (googleData) => {
+    try {
+      setError(null);
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/auth/google`,
+        googleData
+      );
+
+      if (response.data.success) {
+        const { token, user } = response.data;
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        setUser(user);
+        return { success: true };
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || 'Google login failed';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -126,6 +150,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateProfile,
     changePassword,
+    googleLogin,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin'
   };

@@ -8,7 +8,8 @@ import {
   getUsers,
   getUser,
   updateUser,
-  deleteUser
+  deleteUser,
+  googleAuth
 } from '../controllers/authController.js';
 
 const router = express.Router();
@@ -17,6 +18,7 @@ import { protect, authorize } from '../middleware/auth.js';
 
 router.post('/register', register);
 router.post('/login', login);
+router.post('/google', googleAuth); // Google OAuth route
 router.get('/me', protect, getMe);
 router.put('/updatedetails', protect, updateDetails);
 router.put('/updatepassword', protect, updatePassword);

@@ -210,6 +210,68 @@ export const deleteUser = async (req, res, next) => {
   }
 };
 
+// @desc    Google OAuth callback
+// @route   GET /api/auth/google/callback
+// @access  Public
+export const googleCallback = async (req, res, next) => {
+  try {
+    // User is authenticated by passport, send token response
+    sendTokenResponse(req.user, 200, res);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Google OAuth token verification (for frontend)
+// @route   POST /api/auth/google
+// @access  Public
+export const googleAuth = async (req, res, next) => {
+  try {
+    const { email, name, googleId, picture } = req.body;
+
+    if (!email || !googleId) {
+      return next(new ErrorResponse('Please provide email and Google ID', 400));
+    }
+
+    // Check if user exists with googleId
+    let user = await User.findOne({ googleId });
+
+    if (user) {
+      // User exists, check if account is active
+      if (!user.isActive) {
+        return next(new ErrorResponse('Your account has been deactivated', 403));
+      }
+      return sendTokenResponse(user, 200, res);
+    }
+
+    // Check if user exists with same email (from regular registration)
+    user = await User.findOne({ email });
+
+    if (user) {
+      // Link Google account to existing user
+      user.googleId = googleId;
+      if (picture) {
+        user.profilePicture = picture;
+      }
+      await user.save();
+      return sendTokenResponse(user, 200, res);
+    }
+
+    // Create new user
+    user = await User.create({
+      googleId,
+      name,
+      email,
+      profilePicture: picture || null,
+      isActive: true
+    });
+
+    sendTokenResponse(user, 201, res);
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Helper function to get token from model, create cookie and send response
 const sendTokenResponse = (user, statusCode, res) => {
   // Create token
