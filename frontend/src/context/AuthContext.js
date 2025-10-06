@@ -1,5 +1,7 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { io } from 'socket.io-client';
+import { toast } from 'react-toastify';
 
 const AuthContext = createContext();
 
@@ -7,6 +9,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const socketRef = useRef(null);
 
   // Configure axios to send cookies
   axios.defaults.withCredentials = true;
@@ -40,6 +43,84 @@ export const AuthProvider = ({ children }) => {
 
     loadUser();
   }, []);
+
+  // Setup Socket.IO connection when user is authenticated
+  useEffect(() => {
+    if (user) {
+      // Get base URL from API URL (remove /api suffix)
+      const socketUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      
+      // Initialize socket connection
+      socketRef.current = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        withCredentials: true,
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5
+      });
+
+      const socket = socketRef.current;
+
+      socket.on('connect', () => {
+        console.log('Socket connected:', socket.id);
+        // Authenticate the socket with user ID
+        socket.emit('authenticate', user._id);
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+      });
+
+      // Listen for food claimed events
+      socket.on('foodClaimed', (data) => {
+        console.log('Received foodClaimed event:', data);
+        // Show notification for all users about food being claimed
+        toast.info(`📢 "${data.foodTitle}" has been claimed by ${data.claimedBy.name}`, {
+          position: 'top-right',
+          autoClose: 5000
+        });
+      });
+
+      // Listen for personalized food claimed notification (for donors)
+      socket.on('foodClaimedNotification', (data) => {
+        console.log('Received foodClaimedNotification event:', data);
+        toast.success(`🎉 Your food "${data.foodTitle}" has been claimed by ${data.claimedBy.name}!`, {
+          position: 'top-right',
+          autoClose: 7000
+        });
+      });
+
+      // Listen for food completed events
+      socket.on('foodCompleted', (data) => {
+        console.log('Received foodCompleted event:', data);
+        toast.success(`✅ "${data.foodTitle}" has been marked as completed`, {
+          position: 'top-right',
+          autoClose: 5000
+        });
+      });
+
+      // Listen for personalized food completed notification (for claimers)
+      socket.on('foodCompletedNotification', (data) => {
+        console.log('Received foodCompletedNotification event:', data);
+        toast.success(`✅ The food "${data.foodTitle}" you claimed has been completed!`, {
+          position: 'top-right',
+          autoClose: 7000
+        });
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason);
+      });
+
+      // Cleanup on unmount or user logout
+      return () => {
+        if (socketRef.current) {
+          console.log('Disconnecting socket...');
+          socketRef.current.disconnect();
+        }
+      };
+    }
+  }, [user]);
 
   // Register user
   const register = async (userData) => {

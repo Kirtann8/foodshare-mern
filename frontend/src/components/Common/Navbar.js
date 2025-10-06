@@ -79,6 +79,9 @@ const Navbar = () => {
                 <li>
                   <Link to="/my-claims" className="no-underline text-gray-800 font-medium px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 text-sm lg:text-base">My Claims</Link>
                 </li>
+                <li>
+                  <Link to="/messages" className="no-underline text-gray-800 font-medium px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 text-sm lg:text-base">💬 Messages</Link>
+                </li>
                 {user?.role === 'admin' && (
                   <li>
                     <Link to="/admin" className="no-underline text-amber-500 font-bold px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 text-sm lg:text-base">
@@ -178,6 +181,15 @@ const Navbar = () => {
                       className="block no-underline text-gray-800 font-medium px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500"
                     >
                       My Claims
+                    </Link>
+                  </li>
+                  <li>
+                    <Link 
+                      to="/messages" 
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block no-underline text-gray-800 font-medium px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500"
+                    >
+                      💬 Messages
                     </Link>
                   </li>
                   {user?.role === 'admin' && (

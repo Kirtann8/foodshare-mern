@@ -8,10 +8,12 @@ const FoodList = () => {
   const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showStateField, setShowStateField] = useState(false);
   const [filters, setFilters] = useState({
     category: '',
     claimStatus: 'available', // Show ALL food which is available by default
     city: '',
+    state: '',
     page: 1,
     limit: 12
   });
@@ -35,19 +37,23 @@ const FoodList = () => {
   useEffect(() => {
     fetchFoods();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters]);
+  }, [filters.category, filters.claimStatus]); // Only trigger on category/status change, NOT on city/state
 
   const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    
+    // For category and claimStatus, update filters immediately (will trigger useEffect)
+    // For city and state, just update the input value (won't trigger fetch until form submit)
     setFilters({
       ...filters,
-      [e.target.name]: e.target.value,
+      [name]: value,
       page: 1 // Reset to page 1 when filters change
     });
   };
 
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchFoods();
+    fetchFoods(); // Fetch with updated city/state values
   };
 
   if (loading) return <Loading />;
@@ -62,52 +68,105 @@ const FoodList = () => {
       </div>
 
       <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md mb-6 sm:mb-8">
-        <form onSubmit={handleSearch} className="flex gap-3 sm:gap-4 flex-col sm:flex-row items-stretch sm:items-end">
-          <div className="flex-1 min-w-0">
-            <input
-              type="text"
-              name="city"
-              placeholder="Search by city..."
-              value={filters.city}
-              onChange={handleFilterChange}
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm sm:text-base"
-            />
+        <form onSubmit={handleSearch} className="space-y-4">
+          <div className="flex gap-3 sm:gap-4 flex-col sm:flex-row items-stretch sm:items-end">
+            <div className="flex-1 min-w-0">
+              <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+                🗺️ Search by Location
+              </label>
+              <input
+                type="text"
+                id="city"
+                name="city"
+                placeholder="Enter city name..."
+                value={filters.city}
+                onChange={handleFilterChange}
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm sm:text-base"
+              />
+            </div>
+
+            {showStateField && (
+              <div className="flex-1 min-w-0">
+                <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
+                  State <span className="text-gray-400">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  id="state"
+                  name="state"
+                  placeholder="Enter state..."
+                  value={filters.state}
+                  onChange={handleFilterChange}
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm sm:text-base"
+                />
+              </div>
+            )}
+
+            <div className="flex-1 min-w-0">
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+                Category
+              </label>
+              <select
+                id="category"
+                name="category"
+                value={filters.category}
+                onChange={handleFilterChange}
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm sm:text-base"
+              >
+                <option value="">All Categories</option>
+                <option value="Cooked Food">Cooked Food</option>
+                <option value="Raw Ingredients">Raw Ingredients</option>
+                <option value="Packaged Food">Packaged Food</option>
+                <option value="Baked Items">Baked Items</option>
+                <option value="Beverages">Beverages</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <label htmlFor="claimStatus" className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
+              <select
+                id="claimStatus"
+                name="claimStatus"
+                value={filters.claimStatus}
+                onChange={handleFilterChange}
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm sm:text-base"
+              >
+                <option value="">All Status</option>
+                <option value="available">Available</option>
+                <option value="claimed">Claimed</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+
+            <button type="submit" className="bg-gray-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-gray-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap">
+              Apply Filters
+            </button>
           </div>
 
-          <div className="flex-1 min-w-0">
-            <select
-              name="category"
-              value={filters.category}
-              onChange={handleFilterChange}
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm sm:text-base"
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowStateField(!showStateField)}
+              className="text-sm text-green-600 hover:text-green-700 font-medium transition-colors"
             >
-              <option value="">All Categories</option>
-              <option value="Cooked Food">Cooked Food</option>
-              <option value="Raw Ingredients">Raw Ingredients</option>
-              <option value="Packaged Food">Packaged Food</option>
-              <option value="Baked Items">Baked Items</option>
-              <option value="Beverages">Beverages</option>
-              <option value="Other">Other</option>
-            </select>
+              {showStateField ? '− Hide State Filter' : '+ Add State Filter'}
+            </button>
+            {(filters.city || filters.state || filters.category || filters.claimStatus !== 'available') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters({ category: '', claimStatus: 'available', city: '', state: '', page: 1, limit: 12 });
+                  setShowStateField(false);
+                }}
+                className="text-sm text-gray-600 hover:text-gray-700 font-medium transition-colors ml-auto"
+              >
+                Clear All Filters
+              </button>
+            )}
           </div>
-
-          <div className="flex-1 min-w-0">
-            <select
-              name="claimStatus"
-              value={filters.claimStatus}
-              onChange={handleFilterChange}
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm sm:text-base"
-            >
-              <option value="">All Status</option>
-              <option value="available">Available</option>
-              <option value="claimed">Claimed</option>
-              <option value="completed">Completed</option>
-            </select>
-          </div>
-
-          <button type="submit" className="bg-gray-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-gray-700 transition-all duration-300 text-sm sm:text-base whitespace-nowrap">
-            Apply Filters
-          </button>
         </form>
       </div>
 
@@ -116,12 +175,15 @@ const FoodList = () => {
       {!error && foods.length === 0 ? (
         <div className="text-center py-12 sm:py-16 bg-white rounded-xl shadow-md px-4">
           <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">No food posts found</h3>
-          {filters.category || filters.city || filters.claimStatus ? (
+          {filters.category || filters.city || filters.state || filters.claimStatus !== 'available' ? (
             <>
               <p className="text-gray-600 mb-6 text-sm sm:text-base">Try adjusting your filters or clearing them to see all available food.</p>
               <button 
                 className="bg-gray-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-gray-700 transition-all duration-300 text-sm sm:text-base" 
-                onClick={() => setFilters({ category: '', claimStatus: '', city: '', page: 1, limit: 12 })}
+                onClick={() => {
+                  setFilters({ category: '', claimStatus: 'available', city: '', state: '', page: 1, limit: 12 });
+                  setShowStateField(false);
+                }}
               >
                 Clear All Filters
               </button>

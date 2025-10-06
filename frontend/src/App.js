@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Common/Navbar';
 import ProtectedRoute from './components/Common/ProtectedRoute';
@@ -15,6 +17,8 @@ import FoodDetail from './components/Food/FoodDetail';
 import MyDonations from './components/Food/MyDonations';
 import MyClaims from './components/Food/MyClaims';
 import AdminPanel from './components/Admin/AdminPanel';
+import ChatList from './components/Chat/ChatList';
+import ChatWindow from './components/Chat/ChatWindow';
 
 function App() {
   return (
@@ -30,7 +34,7 @@ function App() {
                 <Route path="/home" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-              <Route path="/food/:id" element={<FoodDetail />} />
+                <Route path="/food/:id" element={<FoodDetail />} />
 
               {/* Protected Routes */}
               <Route
@@ -82,6 +86,24 @@ function App() {
                 }
               />
 
+              {/* Chat Routes */}
+              <Route
+                path="/messages"
+                element={
+                  <ProtectedRoute>
+                    <ChatList />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/messages/:conversationId"
+                element={
+                  <ProtectedRoute>
+                    <ChatWindow />
+                  </ProtectedRoute>
+                }
+              />
+
               {/* Admin Routes */}
               <Route
                 path="/admin"
@@ -108,6 +130,18 @@ function App() {
             <p>&copy; 2025 FoodShare. All rights reserved. | Reduce Waste, Share Food, Help Community</p>
           </footer>
         </div>
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={true}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+        />
       </Router>
     </AuthProvider>
     </GoogleOAuthProvider>

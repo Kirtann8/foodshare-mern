@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
 import { foodAPI } from '../../services/api';
 import Loading from '../Common/Loading';
+import ChatButton from '../Chat/ChatButton';
 
 const FoodDetail = () => {
   const { id } = useParams();
@@ -216,13 +217,18 @@ const FoodDetail = () => {
 
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-gray-200">
             {canClaim && (
-              <button 
-                className="w-full sm:w-auto bg-green-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-green-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base" 
-                onClick={handleClaim}
-                disabled={actionLoading}
-              >
-                {actionLoading ? 'Claiming...' : 'Claim This Food'}
-              </button>
+              <>
+                <button 
+                  className="w-full sm:w-auto bg-green-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-green-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base" 
+                  onClick={handleClaim}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? 'Claiming...' : 'Claim This Food'}
+                </button>
+                <div className="w-full sm:w-auto">
+                  <ChatButton foodPostId={food._id} donorId={food.donor._id} />
+                </div>
+              </>
             )}
 
             {canComplete && (

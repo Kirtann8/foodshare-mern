@@ -10,6 +10,8 @@ import xss from 'xss-clean';
 import hpp from 'hpp';
 import cookieParser from 'cookie-parser';
 import cron from 'node-cron';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import connectDB from './config/db.js';
 import errorHandler from './middleware/error.js';
 import Food from './models/Food.js';
@@ -24,6 +26,7 @@ connectDB();
 import authRoutes from './routes/auth.js';
 import foodRoutes from './routes/food.js';
 import uploadRoutes from './routes/uploadRoute.js';
+import messageRoutes from './routes/messages.js';
 
 const app = express();
 
@@ -104,6 +107,66 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Create HTTP server and Socket.IO instance
+const server = http.createServer(app);
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST']
+  }
+});
+
+// Make io instance available to controllers via app.locals
+app.locals.io = io;
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('New socket client connected:', socket.id);
+
+  // Optional: Handle user authentication for socket
+  socket.on('authenticate', (userId) => {
+    socket.userId = userId;
+    socket.join(`user_${userId}`);
+    console.log(`User ${userId} authenticated and joined their room`);
+  });
+
+  // Chat events
+  socket.on('joinConversation', (conversationId) => {
+    socket.join(`conversation_${conversationId}`);
+    console.log(`Socket ${socket.id} joined conversation ${conversationId}`);
+  });
+
+  socket.on('leaveConversation', (conversationId) => {
+    socket.leave(`conversation_${conversationId}`);
+    console.log(`Socket ${socket.id} left conversation ${conversationId}`);
+  });
+
+  socket.on('typing', (data) => {
+    socket.to(`conversation_${data.conversationId}`).emit('userTyping', {
+      userId: socket.userId,
+      conversationId: data.conversationId
+    });
+  });
+
+  socket.on('stopTyping', (data) => {
+    socket.to(`conversation_${data.conversationId}`).emit('userStoppedTyping', {
+      userId: socket.userId,
+      conversationId: data.conversationId
+    });
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Socket client disconnected:', socket.id);
+  });
+});
+
 // Get the directory name
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -114,6 +177,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/food', foodRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Cron job to expire old food posts - runs daily at 2 AM
 cron.schedule('0 2 * * *', async () => {
@@ -154,7 +218,7 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-const server = app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 });
 
