@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import foodAPI from '../../services/api';
+import { foodAPI } from '../../services/api';
 import FoodCard from './FoodCard';
 import Loading from '../Common/Loading';
 
@@ -10,7 +10,7 @@ const FoodList = () => {
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({
     category: '',
-    claimStatus: '', // Show ALL food by default, not just available
+    claimStatus: 'available', // Show ALL food which is available by default
     city: '',
     page: 1,
     limit: 12

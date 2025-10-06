@@ -3,8 +3,16 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import mongoSanitize from 'express-mongo-sanitize';
+import xss from 'xss-clean';
+import hpp from 'hpp';
+import cookieParser from 'cookie-parser';
+import cron from 'node-cron';
 import connectDB from './config/db.js';
 import errorHandler from './middleware/error.js';
+import Food from './models/Food.js';
 
 // Load env vars
 dotenv.config();
@@ -19,30 +27,82 @@ import uploadRoutes from './routes/uploadRoute.js';
 
 const app = express();
 
-// Body parser
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Security middleware - Set security headers with helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"]
+    }
+  },
+  crossOriginEmbedderPolicy: false
+}));
 
-// Enable CORS - Allow multiple origins
+// Cookie parser
+app.use(cookieParser());
+
+// Body parser
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Sanitize data - prevent NoSQL injection
+app.use(mongoSanitize());
+
+// Prevent XSS attacks
+app.use(xss());
+
+// Prevent http param pollution
+app.use(hpp());
+
+// General rate limiting - More lenient in development, strict in production
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 100 : 500, // 100 in production, 500 in development
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+app.use('/api/', limiter);
+
+// Enable CORS - Improved with deterministic allowlist
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:5000',
   'https://foodshare-mern.vercel.app',
   process.env.CLIENT_URL
 ].filter(Boolean);
 
-app.use(cors({
+const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or Postman)
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin (like mobile apps, Postman, or server-to-server)
+    if (!origin) {
+      return callback(null, true);
+    }
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.warn(`CORS blocked request from origin: ${origin}`);
+      callback(new Error(`Origin ${origin} is not allowed by CORS policy`));
     }
   },
-  credentials: true
-}));
+  credentials: true, // Allow cookies
+  optionsSuccessStatus: 200, // For legacy browser support
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Set-Cookie'],
+  maxAge: 86400 // Cache preflight for 24 hours
+};
+
+app.use(cors(corsOptions));
 
 // Get the directory name
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -54,6 +114,31 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/food', foodRoutes);
 app.use('/api/upload', uploadRoutes);
+
+// Cron job to expire old food posts - runs daily at 2 AM
+cron.schedule('0 2 * * *', async () => {
+  try {
+    console.log('Running cron job to expire old food posts...');
+    const now = new Date();
+    
+    const result = await Food.updateMany(
+      {
+        claimStatus: { $in: ['available', 'claimed'] },
+        $or: [
+          { expiryDate: { $lt: now } },
+          { 'pickupTiming.endTime': { $lt: now } }
+        ]
+      },
+      {
+        $set: { claimStatus: 'expired' }
+      }
+    );
+    
+    console.log(`Expired ${result.modifiedCount} food posts`);
+  } catch (error) {
+    console.error('Error running expiry cron job:', error);
+  }
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

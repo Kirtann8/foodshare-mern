@@ -2,12 +2,16 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import ErrorResponse from '../config/ErrorResponse.js';
 
-// Protect routes - Verify JWT token
+// Protect routes - Verify JWT token from cookies or headers
 export const protect = async (req, res, next) => {
   let token;
 
-  // Check for token in headers
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+  // Check for token in cookies first (preferred method)
+  if (req.cookies && req.cookies.accessToken) {
+    token = req.cookies.accessToken;
+  }
+  // Fallback to Authorization header for backwards compatibility
+  else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
   }
 
@@ -33,6 +37,9 @@ export const protect = async (req, res, next) => {
 
     next();
   } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return next(new ErrorResponse('Token expired, please refresh your token', 401));
+    }
     return next(new ErrorResponse('Not authorized to access this route', 401));
   }
 };

@@ -8,16 +8,37 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Load user from localStorage on mount
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
+  // Configure axios to send cookies
+  axios.defaults.withCredentials = true;
 
-    if (token && userData) {
-      setUser(JSON.parse(userData));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    }
-    setLoading(false);
+  // Load user from localStorage on mount and verify session
+  useEffect(() => {
+    const loadUser = async () => {
+      const userData = localStorage.getItem('user');
+
+      if (userData && userData !== 'undefined' && userData !== 'null') {
+        try {
+          setUser(JSON.parse(userData));
+          
+          // Verify the session is still valid by fetching current user
+          const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/me`);
+          if (response.data.success) {
+            setUser(response.data.data);
+            localStorage.setItem('user', JSON.stringify(response.data.data));
+          }
+        } catch (err) {
+          // Session invalid or parse error, clear user data
+          localStorage.removeItem('user');
+          setUser(null);
+        }
+      } else {
+        // Clear invalid localStorage data
+        localStorage.removeItem('user');
+      }
+      setLoading(false);
+    };
+
+    loadUser();
   }, []);
 
   // Register user
@@ -30,10 +51,8 @@ export const AuthProvider = ({ children }) => {
       );
 
       if (response.data.success) {
-        const { token, user } = response.data;
-        localStorage.setItem('token', token);
+        const { user } = response.data;
         localStorage.setItem('user', JSON.stringify(user));
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         setUser(user);
         return { success: true };
       }
@@ -54,10 +73,8 @@ export const AuthProvider = ({ children }) => {
       );
 
       if (response.data.success) {
-        const { token, user } = response.data;
-        localStorage.setItem('token', token);
+        const { user } = response.data;
         localStorage.setItem('user', JSON.stringify(user));
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         setUser(user);
         return { success: true };
       }
@@ -69,11 +86,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Logout user
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    delete axios.defaults.headers.common['Authorization'];
-    setUser(null);
+  const logout = async () => {
+    try {
+      await axios.post(`${process.env.REACT_APP_API_URL}/auth/logout`);
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      localStorage.removeItem('user');
+      setUser(null);
+    }
   };
 
   // Update user profile
@@ -98,13 +119,32 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Change password
-  const changePassword = async (passwords) => {
+  // Request password change OTP
+  const requestPasswordChangeOtp = async (currentPassword) => {
+    try {
+      setError(null);
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/auth/request-password-change-otp`,
+        { currentPassword }
+      );
+
+      if (response.data.success) {
+        return { success: true, message: response.data.message };
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || 'Failed to send OTP';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  };
+
+  // Change password with OTP
+  const changePassword = async (passwordData) => {
     try {
       setError(null);
       const response = await axios.put(
         `${process.env.REACT_APP_API_URL}/auth/updatepassword`,
-        passwords
+        passwordData
       );
 
       if (response.data.success) {
@@ -127,10 +167,8 @@ export const AuthProvider = ({ children }) => {
       );
 
       if (response.data.success) {
-        const { token, user } = response.data;
-        localStorage.setItem('token', token);
+        const { user } = response.data;
         localStorage.setItem('user', JSON.stringify(user));
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         setUser(user);
         return { success: true };
       }
@@ -149,6 +187,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     updateProfile,
+    requestPasswordChangeOtp,
     changePassword,
     googleLogin,
     isAuthenticated: !!user,

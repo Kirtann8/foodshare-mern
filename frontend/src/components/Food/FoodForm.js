@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
-import foodAPI from '../../services/api';
+import { foodAPI } from '../../services/api';
 
 const FoodForm = () => {
   const { user } = useContext(AuthContext);
@@ -188,35 +188,46 @@ const FoodForm = () => {
     setLoading(true);
 
     try {
-      const data = new FormData();
-      
-      // Append all form fields
-      data.append('title', formData.title);
-      data.append('description', formData.description);
-      data.append('category', formData.category);
-      data.append('quantity', formData.quantity);
-      data.append('location[address]', formData.location.address);
-      data.append('location[city]', formData.location.city);
-      data.append('location[state]', formData.location.state);
-      data.append('location[zipCode]', formData.location.zipCode);
-      data.append('pickupTiming[startTime]', formData.pickupTiming.startTime);
-      data.append('pickupTiming[endTime]', formData.pickupTiming.endTime);
-      data.append('expiryDate', formData.expiryDate);
-      data.append('dietaryInfo[isVegetarian]', formData.dietaryInfo.isVegetarian);
-      data.append('dietaryInfo[isVegan]', formData.dietaryInfo.isVegan);
-      data.append('dietaryInfo[isGlutenFree]', formData.dietaryInfo.isGlutenFree);
-      data.append('dietaryInfo[containsNuts]', formData.dietaryInfo.containsNuts);
-      
-      // Append image URLs (already uploaded to Cloudinary)
-      images.forEach((imageUrl, index) => {
-        data.append(`images[${index}]`, imageUrl);
-      });
+      // Create JSON payload instead of FormData
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        quantity: formData.quantity,
+        location: {
+          address: formData.location.address,
+          city: formData.location.city,
+          state: formData.location.state,
+          zipCode: formData.location.zipCode
+        },
+        pickupTiming: {
+          startTime: formData.pickupTiming.startTime,
+          endTime: formData.pickupTiming.endTime
+        },
+        expiryDate: formData.expiryDate,
+        dietaryInfo: {
+          isVegetarian: formData.dietaryInfo.isVegetarian,
+          isVegan: formData.dietaryInfo.isVegan,
+          isGlutenFree: formData.dietaryInfo.isGlutenFree,
+          containsNuts: formData.dietaryInfo.containsNuts
+        },
+        images: images // Array of Cloudinary URLs
+      };
+
+      // Debug logging
+      console.log('=== FRONTEND PAYLOAD DEBUG ===');
+      console.log('images state:', images);
+      console.log('images type:', typeof images);
+      console.log('images isArray:', Array.isArray(images));
+      console.log('payload.images:', payload.images);
+      console.log('Full payload:', JSON.stringify(payload, null, 2));
+      console.log('=== END FRONTEND DEBUG ===');
 
       // Call appropriate API based on mode
       if (isEditMode) {
-        await foodAPI.updateFood(id, data);
+        await foodAPI.updateFood(id, payload);
       } else {
-        await foodAPI.createFood(data);
+        await foodAPI.createFood(payload);
       }
       
       navigate('/my-donations');
@@ -239,7 +250,7 @@ const FoodForm = () => {
         
         {error && <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-4">{error}</div>}
         
-        <form onSubmit={onSubmit} encType="multipart/form-data">
+        <form onSubmit={onSubmit}>
           <div className="mb-4">
             <label htmlFor="title" className="block text-gray-700 font-medium mb-2">Food Title *</label>
             <input
