@@ -49,6 +49,13 @@ const handleMulterError = (err, req, res, next) => {
         error: 'File size cannot exceed 5MB'
       });
     }
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      // Triggered when more than the allowed number of files are uploaded
+      return res.status(400).json({
+        success: false,
+        error: 'Maximum 5 images allowed'
+      });
+    }
     return res.status(400).json({
       success: false,
       error: err.message

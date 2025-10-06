@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
-import foodAPI from '../../services/api';
+import { foodAPI } from '../../services/api';
 import Loading from '../Common/Loading';
 
 const FoodDetail = () => {

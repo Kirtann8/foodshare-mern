@@ -1,5 +1,40 @@
 import Food from '../models/Food.js';
 import ErrorResponse from '../config/ErrorResponse.js';
+import { v2 as cloudinary } from 'cloudinary';
+
+// Helper function to extract public_id from Cloudinary URL
+const extractPublicId = (url) => {
+  if (!url || !url.includes('cloudinary.com')) return null;
+  
+  // Extract public_id from URL: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/public_id.ext
+  const parts = url.split('/');
+  const uploadIndex = parts.indexOf('upload');
+  if (uploadIndex === -1) return null;
+  
+  // Get everything after version number (v1234567890)
+  const pathAfterUpload = parts.slice(uploadIndex + 2).join('/');
+  // Remove file extension
+  return pathAfterUpload.replace(/\.[^/.]+$/, '');
+};
+
+// Helper function to delete Cloudinary images
+const deleteCloudinaryImages = async (imageUrls) => {
+  if (!imageUrls || imageUrls.length === 0) return;
+  
+  const deletePromises = imageUrls.map(async (url) => {
+    const publicId = extractPublicId(url);
+    if (publicId) {
+      try {
+        await cloudinary.uploader.destroy(publicId);
+        console.log(`Deleted Cloudinary image: ${publicId}`);
+      } catch (error) {
+        console.error(`Failed to delete Cloudinary image ${publicId}:`, error.message);
+      }
+    }
+  });
+  
+  await Promise.allSettled(deletePromises);
+};
 
 // @desc    Get all food posts
 // @route   GET /api/food
@@ -12,10 +47,14 @@ export const getFoods = async (req, res, next) => {
     const reqQuery = { ...req.query };
 
     // Fields to exclude
-    const removeFields = ['select', 'sort', 'page', 'limit'];
+    const removeFields = ['select', 'sort', 'page', 'limit', 'city'];
+    
+    // Extract city before removing it
+    const citySearch = req.query.city;
+    
     removeFields.forEach(param => delete reqQuery[param]);
 
-    // Add filters for active and available food
+    // Add filters for active food
     reqQuery.isActive = true;
 
     // Create query string
@@ -24,8 +63,16 @@ export const getFoods = async (req, res, next) => {
     // Create operators ($gt, $gte, etc)
     queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
 
+    // Parse query
+    let parsedQuery = JSON.parse(queryStr);
+
+    // Handle city search with case-insensitive partial matching
+    if (citySearch && citySearch.trim() !== '') {
+      parsedQuery['location.city'] = { $regex: citySearch.trim(), $options: 'i' };
+    }
+
     // Finding resource
-    query = Food.find(JSON.parse(queryStr)).populate('donor', 'name email phone');
+    query = Food.find(parsedQuery).populate('donor', 'name email phone');
 
     // Select Fields
     if (req.query.select) {
@@ -46,7 +93,7 @@ export const getFoods = async (req, res, next) => {
     const limit = parseInt(req.query.limit, 10) || 10;
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
-    const total = await Food.countDocuments(JSON.parse(queryStr));
+    const total = await Food.countDocuments(parsedQuery);
 
     query = query.skip(startIndex).limit(limit);
 
@@ -73,6 +120,7 @@ export const getFoods = async (req, res, next) => {
     res.status(200).json({
       success: true,
       count: foods.length,
+      total,
       pagination,
       data: foods
     });
@@ -112,14 +160,46 @@ export const getFood = async (req, res, next) => {
 // @access  Private
 export const createFood = async (req, res, next) => {
   try {
+    // Log request body for debugging (always for now)
+    console.log('=== CREATE FOOD DEBUG ===');
+    console.log('Raw req.body:', JSON.stringify(req.body, null, 2));
+    console.log('req.body.images type:', typeof req.body.images);
+    console.log('req.body.images value:', req.body.images);
+    console.log('Is Array?:', Array.isArray(req.body.images));
+    console.log('=== END DEBUG ===');
+
     // Add user to req.body
     req.body.donor = req.user.id;
 
-    // Handle uploaded images
-    if (req.files && req.files.length > 0) {
-      req.body.images = req.files.map(file => `/uploads/${file.filename}`);
+    // Validate required fields before attempting to create
+    const requiredFields = ['title', 'description', 'quantity', 'category'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    
+    if (missingFields.length > 0) {
+      return next(new ErrorResponse(`Missing required fields: ${missingFields.join(', ')}`, 400));
     }
 
+    // Validate location object
+    if (!req.body.location || !req.body.location.address || !req.body.location.city) {
+      return next(new ErrorResponse('Location with address and city is required', 400));
+    }
+
+    // Validate pickup timing
+    if (!req.body.pickupTiming || !req.body.pickupTiming.startTime || !req.body.pickupTiming.endTime) {
+      return next(new ErrorResponse('Pickup timing with start and end time is required', 400));
+    }
+
+    // Validate expiry date
+    if (!req.body.expiryDate) {
+      return next(new ErrorResponse('Expiry date is required', 400));
+    }
+
+    // Images should be provided as Cloudinary URLs in the request body
+    // Images are optional, but if provided should be an array
+    if (req.body.images && !Array.isArray(req.body.images)) {
+      req.body.images = [req.body.images];
+    }
+    
     const food = await Food.create(req.body);
 
     res.status(201).json({
@@ -136,6 +216,11 @@ export const createFood = async (req, res, next) => {
 // @access  Private
 export const updateFood = async (req, res, next) => {
   try {
+    // Log request body for debugging (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Update Food Request Body:', JSON.stringify(req.body, null, 2));
+    }
+
     let food = await Food.findById(req.params.id);
 
     if (!food) {
@@ -147,9 +232,17 @@ export const updateFood = async (req, res, next) => {
       return next(new ErrorResponse(`User ${req.user.id} is not authorized to update this food post`, 403));
     }
 
-    // Handle uploaded images
-    if (req.files && req.files.length > 0) {
-      req.body.images = req.files.map(file => `/uploads/${file.filename}`);
+    // If new images are provided, delete old Cloudinary images
+    if (req.body.images && req.body.images.length > 0) {
+      const oldImages = food.images || [];
+      if (oldImages.length > 0) {
+        await deleteCloudinaryImages(oldImages);
+      }
+    }
+
+    // Images should be an array
+    if (req.body.images && !Array.isArray(req.body.images)) {
+      req.body.images = [req.body.images];
     }
 
     food = await Food.findByIdAndUpdate(req.params.id, req.body, {
@@ -182,12 +275,31 @@ export const deleteFood = async (req, res, next) => {
       return next(new ErrorResponse(`User ${req.user.id} is not authorized to delete this food post`, 403));
     }
 
-    await food.deleteOne();
-
-    res.status(200).json({
-      success: true,
-      data: {}
-    });
+    // Regular users: soft delete (set isActive to false)
+    // Admins: can choose to hard delete
+    if (req.user.role === 'admin') {
+      // Admin can hard delete - delete associated Cloudinary images
+      if (food.images && food.images.length > 0) {
+        await deleteCloudinaryImages(food.images);
+      }
+      await food.deleteOne();
+      
+      res.status(200).json({
+        success: true,
+        message: 'Food post permanently deleted',
+        data: {}
+      });
+    } else {
+      // Regular user: soft delete
+      food.isActive = false;
+      await food.save();
+      
+      res.status(200).json({
+        success: true,
+        message: 'Food post deactivated successfully',
+        data: {}
+      });
+    }
   } catch (err) {
     next(err);
   }
@@ -263,6 +375,7 @@ export const completeFood = async (req, res, next) => {
 // @access  Private
 export const getMyDonations = async (req, res, next) => {
   try {
+    const total = await Food.countDocuments({ donor: req.user.id });
     const foods = await Food.find({ donor: req.user.id })
       .populate('claimedBy', 'name email phone')
       .sort('-createdAt');
@@ -270,6 +383,7 @@ export const getMyDonations = async (req, res, next) => {
     res.status(200).json({
       success: true,
       count: foods.length,
+      total,
       data: foods
     });
   } catch (err) {
@@ -282,6 +396,7 @@ export const getMyDonations = async (req, res, next) => {
 // @access  Private
 export const getMyClaims = async (req, res, next) => {
   try {
+    const total = await Food.countDocuments({ claimedBy: req.user.id });
     const foods = await Food.find({ claimedBy: req.user.id })
       .populate('donor', 'name email phone address')
       .sort('-claimedAt');
@@ -289,6 +404,7 @@ export const getMyClaims = async (req, res, next) => {
     res.status(200).json({
       success: true,
       count: foods.length,
+      total,
       data: foods
     });
   } catch (err) {
@@ -317,6 +433,7 @@ export const searchByLocation = async (req, res, next) => {
       query['location.state'] = new RegExp(state, 'i');
     }
 
+    const total = await Food.countDocuments(query);
     const foods = await Food.find(query)
       .populate('donor', 'name email phone')
       .sort('-createdAt');
@@ -324,6 +441,7 @@ export const searchByLocation = async (req, res, next) => {
     res.status(200).json({
       success: true,
       count: foods.length,
+      total,
       data: foods
     });
   } catch (err) {
@@ -401,6 +519,11 @@ export const deleteFoodAdmin = async (req, res, next) => {
 
     if (!food) {
       return next(new ErrorResponse(`Food not found with id of ${req.params.id}`, 404));
+    }
+
+    // Delete associated Cloudinary images
+    if (food.images && food.images.length > 0) {
+      await deleteCloudinaryImages(food.images);
     }
 
     // Admin can delete any post

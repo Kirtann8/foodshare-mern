@@ -4,19 +4,34 @@ const API_URL = process.env.REACT_APP_API_URL;
 
 // Create axios instance
 const axiosInstance = axios.create({
-  baseURL: API_URL
+  baseURL: API_URL,
+  withCredentials: true // Enable sending cookies with requests
 });
 
-// Add request interceptor to include token dynamically
-axiosInstance.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+// Add response interceptor to handle token expiration
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If error is 401 and we haven't retried yet, try to refresh token
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        // Attempt to refresh the token
+        await axiosInstance.post('/auth/refresh');
+        
+        // Retry the original request
+        return axiosInstance(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed, redirect to login
+        localStorage.removeItem('user'); // Clean up any stored user data
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
     }
-    return config;
-  },
-  (error) => {
+
     return Promise.reject(error);
   }
 );
@@ -55,13 +70,9 @@ export const foodAPI = {
   },
 
   // Create new food post
-  createFood: async (formData) => {
+  createFood: async (foodData) => {
     try {
-      const response = await axiosInstance.post('/food', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const response = await axiosInstance.post('/food', foodData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -69,13 +80,9 @@ export const foodAPI = {
   },
 
   // Update food post
-  updateFood: async (id, formData) => {
+  updateFood: async (id, foodData) => {
     try {
-      const response = await axiosInstance.put(`/food/${id}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const response = await axiosInstance.put(`/food/${id}`, foodData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;
@@ -256,4 +263,6 @@ export const authAPI = {
   }
 };
 
-export default foodAPI;
+// Export the axios instance as the default export
+// This allows components to use generic HTTP methods (post, get, put, delete, etc.)
+export default axiosInstance;

@@ -32,6 +32,7 @@ const createAdmin = async () => {
       password: 'admin123456',  // Change this to a strong password
       role: 'admin',
       phone: '0000000000',
+      isEmailVerified: true,  // Admin is automatically verified
       address: {
         street: 'Admin Office',
         city: 'Admin City',
