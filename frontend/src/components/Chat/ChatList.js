@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { messageAPI } from '../../services/api';
 import AuthContext from '../../context/AuthContext';
 import { toast } from 'react-toastify';
-import Loading from '../Common/Loading';
 
 const ChatList = () => {
   const navigate = useNavigate();
@@ -72,52 +71,98 @@ const ChatList = () => {
     return uc[user._id] || 0;
   };
 
-  if (loading) return <Loading />;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-6">
+            <div className="h-8 w-48 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-4 w-32 bg-gray-200 rounded mt-2 animate-pulse"></div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex items-center p-4 border-b border-gray-200 last:border-b-0">
+                <div className="w-12 h-12 bg-gray-200 rounded-full animate-pulse"></div>
+                <div className="ml-4 flex-1">
+                  <div className="h-4 w-32 bg-gray-200 rounded animate-pulse mb-2"></div>
+                  <div className="h-3 w-48 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-6 sm:py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
-          {unreadCount > 0 && (
-            <p className="text-sm text-gray-600 mt-1">
-              You have {unreadCount} unread message{unreadCount !== 1 ? 's' : ''}
-            </p>
-          )}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
+                <svg className="w-8 h-8 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                Messages
+              </h1>
+              {unreadCount > 0 && (
+                <div className="flex items-center mt-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
+                  <p className="text-sm text-gray-600 font-medium">
+                    {unreadCount} unread message{unreadCount !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => navigate('/')}
+              className="hidden sm:inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Browse Food
+            </button>
+          </div>
         </div>
 
         {/* Conversations List */}
         {conversations.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-            <svg
-              className="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-              />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No conversations yet</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Start chatting about food donations to see your conversations here.
-            </p>
-            <div className="mt-6">
-              <button
-                onClick={() => navigate('/')}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+          <div className="bg-white rounded-xl shadow-md p-12 text-center">
+            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center">
+              <svg
+                className="h-12 w-12 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                Browse Food Donations
-              </button>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
             </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">No conversations yet</h3>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              Start chatting about food donations to see your conversations here. Connect with donors and help reduce food waste!
+            </p>
+            <button
+              onClick={() => navigate('/')}
+              className="inline-flex items-center px-6 py-3 border border-transparent shadow-md text-base font-medium rounded-lg text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 transition-all transform hover:scale-105"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              Browse Food Donations
+            </button>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
             {conversations.map((conversation) => {
               const otherParticipant = getOtherParticipant(conversation);
               const unread = getUnreadCountForConversation(conversation);
@@ -126,34 +171,44 @@ const ChatList = () => {
                 <div
                   key={conversation._id}
                   onClick={() => navigate(`/messages/${conversation._id}`)}
-                  className={`flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-200 last:border-b-0 ${
-                    unread > 0 ? 'bg-green-50' : ''
+                  className={`flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-all ${
+                    unread > 0 ? 'bg-green-50 hover:bg-green-100' : ''
                   }`}
                 >
                   {/* Avatar */}
-                  <div className="flex-shrink-0">
-                    <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center text-white font-semibold text-lg">
+                  <div className="flex-shrink-0 relative">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-md">
                       {otherParticipant?.name?.charAt(0).toUpperCase()}
                     </div>
+                    {unread > 0 && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
+                        <span className="text-xs text-white font-bold">{unread > 9 ? '9+' : unread}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Content */}
                   <div className="ml-4 flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-900 truncate">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className={`text-sm sm:text-base font-bold text-gray-900 truncate ${unread > 0 ? 'text-green-700' : ''}`}>
                         {otherParticipant?.name}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {conversation.lastMessage && formatLastMessageTime(conversation.updatedAt)}
-                      </p>
+                      {conversation.lastMessage && (
+                        <p className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                          {formatLastMessageTime(conversation.updatedAt)}
+                        </p>
+                      )}
                     </div>
                     {conversation.foodPost && (
-                      <p className="text-xs text-green-600 truncate mt-0.5">
-                        Re: {conversation.foodPost.title}
-                      </p>
+                      <div className="flex items-center text-xs text-green-600 font-semibold truncate mb-1">
+                        <svg className="w-3 h-3 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                        </svg>
+                        <span className="truncate">Re: {conversation.foodPost.title}</span>
+                      </div>
                     )}
                     {conversation.lastMessage && (
-                      <p className={`text-sm truncate mt-1 ${
+                      <p className={`text-sm truncate ${
                         unread > 0 ? 'font-semibold text-gray-900' : 'text-gray-600'
                       }`}>
                         {conversation.lastMessage.content}
@@ -161,14 +216,12 @@ const ChatList = () => {
                     )}
                   </div>
 
-                  {/* Unread Badge */}
-                  {unread > 0 && (
-                    <div className="ml-2 flex-shrink-0">
-                      <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-green-600 rounded-full">
-                        {unread > 9 ? '9+' : unread}
-                      </span>
-                    </div>
-                  )}
+                  {/* Arrow */}
+                  <div className="ml-3 flex-shrink-0">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
                 </div>
               );
             })}

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { foodAPI } from '../../services/api';
 import FoodCard from './FoodCard';
-import Loading from '../Common/Loading';
+import FoodCardSkeleton from './FoodCardSkeleton';
+import LocationAutocomplete from './LocationAutocomplete';
 
 const FoodList = () => {
   const [foods, setFoods] = useState([]);
@@ -56,8 +57,6 @@ const FoodList = () => {
     fetchFoods(); // Fetch with updated city/state values
   };
 
-  if (loading) return <Loading />;
-
   return (
     <div className="w-full px-4 sm:px-0">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
@@ -74,14 +73,11 @@ const FoodList = () => {
               <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
                 🗺️ Search by Location
               </label>
-              <input
-                type="text"
-                id="city"
+              <LocationAutocomplete
                 name="city"
-                placeholder="Enter city name..."
                 value={filters.city}
                 onChange={handleFilterChange}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm sm:text-base"
+                placeholder="Search for a city..."
               />
             </div>
 
@@ -170,9 +166,80 @@ const FoodList = () => {
         </form>
       </div>
 
+      {/* Active Filters & Result Count */}
+      {!loading && !error && (
+        <div className="mb-6">
+          {/* Active Filter Chips */}
+          {(filters.city || filters.state || filters.category || filters.claimStatus !== 'available') && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              <span className="text-sm text-gray-600 font-medium py-2">Active Filters:</span>
+              {filters.city && (
+                <span className="bg-green-100 text-green-800 px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-2">
+                  📍 {filters.city}
+                  <button
+                    onClick={() => setFilters({ ...filters, city: '' })}
+                    className="hover:bg-green-200 rounded-full p-0.5 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )}
+              {filters.state && (
+                <span className="bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-2">
+                  🏛️ {filters.state}
+                  <button
+                    onClick={() => setFilters({ ...filters, state: '' })}
+                    className="hover:bg-blue-200 rounded-full p-0.5 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )}
+              {filters.category && (
+                <span className="bg-purple-100 text-purple-800 px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-2">
+                  🏷️ {filters.category}
+                  <button
+                    onClick={() => setFilters({ ...filters, category: '' })}
+                    className="hover:bg-purple-200 rounded-full p-0.5 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )}
+              {filters.claimStatus && filters.claimStatus !== 'available' && (
+                <span className="bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-2">
+                  ⚡ Status: {filters.claimStatus}
+                  <button
+                    onClick={() => setFilters({ ...filters, claimStatus: 'available' })}
+                    className="hover:bg-amber-200 rounded-full p-0.5 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Result Count */}
+          {foods.length > 0 && (
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-600">
+                Showing <span className="font-semibold text-gray-900">{foods.length}</span> food {foods.length === 1 ? 'post' : 'posts'}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {error && <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6 text-sm sm:text-base">{error}</div>}
 
-      {!error && foods.length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          {[...Array(6)].map((_, index) => (
+            <FoodCardSkeleton key={index} />
+          ))}
+        </div>
+      ) : !error && foods.length === 0 ? (
         <div className="text-center py-12 sm:py-16 bg-white rounded-xl shadow-md px-4">
           <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">No food posts found</h3>
           {filters.category || filters.city || filters.state || filters.claimStatus !== 'available' ? (

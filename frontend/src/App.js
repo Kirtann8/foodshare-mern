@@ -99,7 +99,9 @@ function App() {
                 path="/messages/:conversationId"
                 element={
                   <ProtectedRoute>
-                    <ChatWindow />
+                    <div className="fixed inset-0 z-50 bg-white">
+                      <ChatWindow />
+                    </div>
                   </ProtectedRoute>
                 }
               />

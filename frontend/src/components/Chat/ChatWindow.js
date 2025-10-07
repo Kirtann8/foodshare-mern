@@ -209,8 +209,11 @@ const ChatWindow = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-green-600 border-t-transparent mx-auto"></div>
+          <p className="mt-4 text-gray-600 font-medium">Loading conversation...</p>
+        </div>
       </div>
     );
   }
@@ -218,25 +221,32 @@ const ChatWindow = () => {
   const otherParticipant = conversation?.participants.find(p => p._id !== user._id);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center shadow-sm">
+    <div className="flex flex-col h-screen bg-gradient-to-b from-gray-50 to-gray-100 overflow-hidden">
+      {/* Header - Fixed */}
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center shadow-md flex-shrink-0 z-10">
         <button
           onClick={() => navigate('/messages')}
-          className="mr-4 text-gray-600 hover:text-gray-800"
+          className="mr-3 sm:mr-4 text-gray-600 hover:text-gray-800 hover:bg-gray-100 p-2 rounded-full transition-all"
+          aria-label="Back to messages"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <div className="flex items-center flex-1">
-          <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-semibold">
-            {otherParticipant?.name?.charAt(0).toUpperCase()}
+        <div className="flex items-center flex-1 min-w-0">
+          <div className="relative flex-shrink-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+              {otherParticipant?.name?.charAt(0).toUpperCase()}
+            </div>
+            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
           </div>
-          <div className="ml-3">
-            <h2 className="text-lg font-semibold text-gray-800">{otherParticipant?.name}</h2>
+          <div className="ml-3 flex-1 min-w-0">
+            <h2 className="text-base sm:text-lg font-bold text-gray-900 truncate">{otherParticipant?.name}</h2>
             {conversation?.foodPost && (
-              <p className="text-sm text-gray-500">
+              <p className="text-xs sm:text-sm text-green-600 font-medium truncate flex items-center">
+                <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
                 Re: {conversation.foodPost.title}
               </p>
             )}
@@ -244,45 +254,62 @@ const ChatWindow = () => {
         </div>
       </div>
 
-      {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-        {(messages || []).map((message) => {
-          // message.sender might be populated as a user object or a simple id string depending on backend
-          const senderId = message?.sender?._id || message?.sender || null;
-          const isOwnMessage = senderId === user?._id;
-          return (
-            <div
-              key={message._id}
-              className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-            >
-              <div className={`max-w-xs lg:max-w-md ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-                <div
-                  className={`rounded-2xl px-4 py-2 ${
-                    isOwnMessage
-                      ? 'bg-green-600 text-white'
-                      : 'bg-white text-gray-800 border border-gray-200'
-                  }`}
-                >
-                  <p className="text-sm break-words">{message.content}</p>
-                </div>
-                <p
-                  className={`text-xs text-gray-500 mt-1 ${
-                    isOwnMessage ? 'text-right' : 'text-left'
-                  }`}
-                >
-                  {formatMessageTime(message.createdAt)}
-                </p>
+      {/* Messages Container - Scrollable */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-3">
+        {messages && messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="w-20 h-20 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
+                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
               </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Start the conversation</h3>
+              <p className="text-sm text-gray-600">Send a message to {otherParticipant?.name}</p>
             </div>
-          );
-        })}
+          </div>
+        ) : (
+          (messages || []).map((message) => {
+            // message.sender might be populated as a user object or a simple id string depending on backend
+            const senderId = message?.sender?._id || message?.sender || null;
+            const isOwnMessage = senderId === user?._id;
+            return (
+              <div
+                key={message._id}
+                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} animate-fadeIn`}
+              >
+                <div className={`max-w-[70%] sm:max-w-xs lg:max-w-md ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                  <div
+                    className={`rounded-2xl px-4 py-2.5 shadow-sm ${
+                      isOwnMessage
+                        ? 'bg-gradient-to-br from-green-600 to-green-700 text-white rounded-br-sm'
+                        : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm'
+                    }`}
+                  >
+                    <p className="text-sm sm:text-base break-words leading-relaxed">{message.content}</p>
+                  </div>
+                  <div className={`flex items-center gap-1 mt-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+                    <p className="text-xs text-gray-500">
+                      {formatMessageTime(message.createdAt)}
+                    </p>
+                    {isOwnMessage && (
+                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
         {isTyping && (
-          <div className="flex justify-start">
-            <div className="bg-gray-200 rounded-2xl px-4 py-3">
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          <div className="flex justify-start animate-fadeIn">
+            <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-5 py-3 shadow-sm">
+              <div className="flex space-x-1.5">
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
               </div>
             </div>
           </div>
@@ -290,9 +317,9 @@ const ChatWindow = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Message Input */}
-      <div className="bg-white border-t border-gray-200 px-6 py-4">
-        <form onSubmit={handleSendMessage} className="flex items-center space-x-3">
+      {/* Message Input - Fixed */}
+      <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 sm:py-4 shadow-lg flex-shrink-0">
+        <form onSubmit={handleSendMessage} className="flex items-center space-x-2 sm:space-x-3">
           <input
             type="text"
             value={newMessage}
@@ -301,19 +328,38 @@ const ChatWindow = () => {
               handleTyping();
             }}
             placeholder="Type a message..."
-            className="flex-1 border border-gray-300 rounded-full px-5 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            className="flex-1 border-2 border-gray-300 rounded-full px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
+            autoComplete="off"
           />
           <button
             type="submit"
             disabled={!newMessage.trim()}
-            className="bg-green-600 text-white rounded-full p-3 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            className="bg-gradient-to-br from-green-600 to-green-700 text-white rounded-full p-2.5 sm:p-3 hover:from-green-700 hover:to-green-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all transform hover:scale-105 disabled:hover:scale-100 shadow-lg"
+            aria-label="Send message"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>
           </button>
         </form>
       </div>
+
+      {/* Add custom animation styles */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 };
