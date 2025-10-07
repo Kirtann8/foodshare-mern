@@ -47,10 +47,11 @@ export const getFoods = async (req, res, next) => {
     const reqQuery = { ...req.query };
 
     // Fields to exclude
-    const removeFields = ['select', 'sort', 'page', 'limit', 'city'];
+    const removeFields = ['select', 'sort', 'page', 'limit', 'city', 'state'];
     
-    // Extract city before removing it
+    // Extract city and state before removing them
     const citySearch = req.query.city;
+    const stateSearch = req.query.state;
     
     removeFields.forEach(param => delete reqQuery[param]);
 
@@ -69,6 +70,11 @@ export const getFoods = async (req, res, next) => {
     // Handle city search with case-insensitive partial matching
     if (citySearch && citySearch.trim() !== '') {
       parsedQuery['location.city'] = { $regex: citySearch.trim(), $options: 'i' };
+    }
+
+    // Handle state search with case-insensitive partial matching
+    if (stateSearch && stateSearch.trim() !== '') {
+      parsedQuery['location.state'] = { $regex: stateSearch.trim(), $options: 'i' };
     }
 
     // Finding resource
@@ -333,6 +339,36 @@ export const claimFood = async (req, res, next) => {
 
     await food.save();
 
+    // Populate the food data with donor and claimer details for socket emission
+    await food.populate('donor', 'name email');
+    await food.populate('claimedBy', 'name email');
+
+    // Emit real-time event to notify donor and all connected clients
+    const io = req.app.locals.io;
+    if (io) {
+      const eventData = {
+        foodId: food._id,
+        foodTitle: food.title,
+        claimedBy: {
+          id: req.user.id,
+          name: req.user.name
+        },
+        donor: {
+          id: food.donor._id,
+          name: food.donor.name
+        },
+        timestamp: new Date()
+      };
+
+      // Emit to all connected clients
+      io.emit('foodClaimed', eventData);
+
+      // Also emit to specific donor's room if they're connected
+      io.to(`user_${food.donor._id}`).emit('foodClaimedNotification', eventData);
+      
+      console.log('Socket event emitted: foodClaimed', eventData);
+    }
+
     res.status(200).json({
       success: true,
       data: food
@@ -360,6 +396,38 @@ export const completeFood = async (req, res, next) => {
 
     food.claimStatus = 'completed';
     await food.save();
+
+    // Populate the food data for socket emission
+    await food.populate('donor', 'name email');
+    await food.populate('claimedBy', 'name email');
+
+    // Emit real-time event to notify claimer and all connected clients
+    const io = req.app.locals.io;
+    if (io) {
+      const eventData = {
+        foodId: food._id,
+        foodTitle: food.title,
+        donor: {
+          id: food.donor._id,
+          name: food.donor.name
+        },
+        claimedBy: food.claimedBy ? {
+          id: food.claimedBy._id,
+          name: food.claimedBy.name
+        } : null,
+        timestamp: new Date()
+      };
+
+      // Emit to all connected clients
+      io.emit('foodCompleted', eventData);
+
+      // Also emit to specific claimer's room if food was claimed
+      if (food.claimedBy) {
+        io.to(`user_${food.claimedBy._id}`).emit('foodCompletedNotification', eventData);
+      }
+      
+      console.log('Socket event emitted: foodCompleted', eventData);
+    }
 
     res.status(200).json({
       success: true,

@@ -263,6 +263,62 @@ export const authAPI = {
   }
 };
 
+// Message/Chat API services
+export const messageAPI = {
+  // Get or create conversation
+  getOrCreateConversation: async (foodPostId, otherUserId) => {
+    try {
+      const response = await axiosInstance.post('/messages/conversation', {
+        foodPostId,
+        otherUserId
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Get all conversations
+  getConversations: async () => {
+    try {
+      const response = await axiosInstance.get('/messages/conversations');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Get messages in a conversation
+  getMessages: async (conversationId, page = 1) => {
+    try {
+      const response = await axiosInstance.get(`/messages/conversation/${conversationId}?page=${page}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Send a message
+  sendMessage: async (messageData) => {
+    try {
+      const response = await axiosInstance.post('/messages', messageData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Get unread message count
+  getUnreadCount: async () => {
+    try {
+      const response = await axiosInstance.get('/messages/unread/count');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  }
+};
+
 // Export the axios instance as the default export
 // This allows components to use generic HTTP methods (post, get, put, delete, etc.)
 export default axiosInstance;
