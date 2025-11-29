@@ -27,6 +27,7 @@ import authRoutes from './routes/auth.js';
 import foodRoutes from './routes/food.js';
 import uploadRoutes from './routes/uploadRoute.js';
 import messageRoutes from './routes/messages.js';
+import communicationRoutes from './routes/communication.js';
 
 const app = express();
 
@@ -178,6 +179,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/food', foodRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/communication', communicationRoutes);
 
 // Cron job to expire old food posts - runs daily at 2 AM
 cron.schedule('0 2 * * *', async () => {

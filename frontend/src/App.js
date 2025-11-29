@@ -17,6 +17,8 @@ import FoodDetail from './components/Food/FoodDetail';
 import MyDonations from './components/Food/MyDonations';
 import MyClaims from './components/Food/MyClaims';
 import AdminPanel from './components/Admin/AdminPanel';
+import VolunteerApplication from './components/Auth/VolunteerApplication';
+import VolunteerPanel from './components/Volunteer/VolunteerPanel';
 import ChatList from './components/Chat/ChatList';
 import ChatWindow from './components/Chat/ChatWindow';
 
@@ -82,6 +84,22 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <MyClaims />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/apply-volunteer"
+                element={
+                  <ProtectedRoute>
+                    <VolunteerApplication />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/volunteer"
+                element={
+                  <ProtectedRoute volunteerOnly={true}>
+                    <VolunteerPanel />
                   </ProtectedRoute>
                 }
               />

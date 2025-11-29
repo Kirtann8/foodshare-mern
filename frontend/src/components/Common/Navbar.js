@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
 
 const Navbar = () => {
-  const { user, isAuthenticated, logout } = useContext(AuthContext);
+  const { user, isAuthenticated, isVolunteer, isVolunteerOrAdmin, canApplyForVolunteer, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -82,6 +82,20 @@ const Navbar = () => {
                 <li>
                   <Link to="/messages" className="no-underline text-gray-800 font-medium px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 text-sm lg:text-base">💬 Messages</Link>
                 </li>
+                {canApplyForVolunteer && (
+                  <li>
+                    <Link to="/apply-volunteer" className="no-underline text-blue-600 font-medium px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-50 text-sm lg:text-base">
+                      🤝 Become Volunteer
+                    </Link>
+                  </li>
+                )}
+                {isVolunteer && (
+                  <li>
+                    <Link to="/volunteer" className="no-underline text-purple-600 font-bold px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-purple-50 text-sm lg:text-base">
+                      🤝 Volunteer Panel
+                    </Link>
+                  </li>
+                )}
                 {user?.role === 'admin' && (
                   <li>
                     <Link to="/admin" className="no-underline text-amber-500 font-bold px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 text-sm lg:text-base">
@@ -96,12 +110,19 @@ const Navbar = () => {
                   >
                     {user?.name || 'Account'}
                     {user?.role === 'admin' && <span className="ml-1 text-xs">👑</span>}
+                    {user?.role === 'volunteer' && <span className="ml-1 text-xs">🤝</span>}
                     <span className="ml-1">{dropdownOpen ? '▴' : '▾'}</span>
                   </button>
                   {dropdownOpen && (
                     <div className="absolute top-full right-0 bg-white shadow-lg rounded-lg min-w-[200px] mt-2 border border-gray-200 overflow-hidden">
                       <Link to="/profile" onClick={() => setDropdownOpen(false)} className="block px-4 py-3 text-gray-800 no-underline transition-all duration-300 hover:bg-gray-100">Profile</Link>
                       <Link to="/change-password" onClick={() => setDropdownOpen(false)} className="block px-4 py-3 text-gray-800 no-underline transition-all duration-300 hover:bg-gray-100">Change Password</Link>
+                      {canApplyForVolunteer && (
+                        <Link to="/apply-volunteer" onClick={() => setDropdownOpen(false)} className="block px-4 py-3 text-blue-600 no-underline transition-all duration-300 hover:bg-gray-100">🤝 Become Volunteer</Link>
+                      )}
+                      {isVolunteer && (
+                        <Link to="/volunteer" onClick={() => setDropdownOpen(false)} className="block px-4 py-3 text-purple-600 no-underline transition-all duration-300 hover:bg-gray-100">🤝 Volunteer Panel</Link>
+                      )}
                       {user?.role === 'admin' && (
                         <Link to="/admin" onClick={() => setDropdownOpen(false)} className="block px-4 py-3 text-gray-800 no-underline transition-all duration-300 hover:bg-gray-100">🛡️ Admin Panel</Link>
                       )}
@@ -192,6 +213,28 @@ const Navbar = () => {
                       💬 Messages
                     </Link>
                   </li>
+                  {canApplyForVolunteer && (
+                    <li>
+                      <Link 
+                        to="/apply-volunteer" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block no-underline text-blue-600 font-medium px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-50"
+                      >
+                        🤝 Become Volunteer
+                      </Link>
+                    </li>
+                  )}
+                  {isVolunteer && (
+                    <li>
+                      <Link 
+                        to="/volunteer" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block no-underline text-purple-600 font-bold px-4 py-2 rounded-lg transition-all duration-300 hover:bg-purple-50"
+                      >
+                        🤝 Volunteer Panel
+                      </Link>
+                    </li>
+                  )}
                   {user?.role === 'admin' && (
                     <li>
                       <Link 
@@ -211,6 +254,7 @@ const Navbar = () => {
                     >
                       Profile
                       {user?.role === 'admin' && <span className="ml-1 text-xs">👑</span>}
+                      {user?.role === 'volunteer' && <span className="ml-1 text-xs">🤝</span>}
                     </Link>
                   </li>
                   <li>

@@ -247,6 +247,108 @@ export const adminAPI = {
     } catch (error) {
       throw error.response?.data || error;
     }
+  },
+
+  // Get pending food posts for approval
+  getPendingFoodPosts: async (page = 1, limit = 10) => {
+    try {
+      const response = await axiosInstance.get(`/food/admin/pending?page=${page}&limit=${limit}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Approve food post
+  approveFoodPost: async (id) => {
+    try {
+      const response = await axiosInstance.put(`/food/admin/${id}/approve`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Reject food post
+  rejectFoodPost: async (id, reason) => {
+    try {
+      const response = await axiosInstance.put(`/food/admin/${id}/reject`, { reason });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Assign volunteer to food post
+  assignVolunteer: async (id, volunteerId) => {
+    try {
+      const response = await axiosInstance.put(`/food/${id}/assign-volunteer`, { volunteerId });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Update collection status
+  updateCollectionStatus: async (id, status, notes, distributionDetails) => {
+    try {
+      const response = await axiosInstance.put(`/food/${id}/collection-status`, { 
+        status, 
+        notes, 
+        distributionDetails 
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Auto-assign volunteers
+  autoAssignVolunteers: async () => {
+    try {
+      const response = await axiosInstance.post('/food/auto-assign');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Get volunteer assignments
+  getVolunteerAssignments: async (status, page = 1, limit = 10) => {
+    try {
+      const params = { page, limit };
+      if (status) params.status = status;
+      const queryString = new URLSearchParams(params).toString();
+      const response = await axiosInstance.get(`/food/volunteer/assignments?${queryString}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Accept volunteer assignment
+  acceptAssignment: async (assignmentId) => {
+    try {
+      const response = await axiosInstance.put(`/food/volunteer/assignments/${assignmentId}/accept`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Get available volunteers
+  getAvailableVolunteers: async (city, serviceArea) => {
+    try {
+      const params = {};
+      if (city) params.city = city;
+      if (serviceArea) params.serviceArea = serviceArea;
+      const queryString = new URLSearchParams(params).toString();
+      const url = queryString ? `/food/volunteers/available?${queryString}` : '/food/volunteers/available';
+      const response = await axiosInstance.get(url);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   }
 };
 
@@ -312,6 +414,59 @@ export const messageAPI = {
   getUnreadCount: async () => {
     try {
       const response = await axiosInstance.get('/messages/unread/count');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  }
+};
+
+// Communication API services
+export const communicationAPI = {
+  // Get contact details for food post
+  getFoodPostContacts: async (foodId) => {
+    try {
+      const response = await axiosInstance.get(`/communication/contacts/${foodId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Send notification to food post participants
+  sendFoodPostNotification: async (foodId, notificationData) => {
+    try {
+      const response = await axiosInstance.post(`/communication/notify/${foodId}`, notificationData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Get volunteer service areas
+  getVolunteerServiceAreas: async () => {
+    try {
+      const response = await axiosInstance.get('/communication/volunteer/service-areas');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Schedule pickup coordination
+  schedulePickupCoordination: async (foodId, coordinationData) => {
+    try {
+      const response = await axiosInstance.post(`/communication/schedule-pickup/${foodId}`, coordinationData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Report distribution completion
+  reportDistributionCompletion: async (foodId, distributionData) => {
+    try {
+      const response = await axiosInstance.post(`/communication/report-distribution/${foodId}`, distributionData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

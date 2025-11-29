@@ -1,4 +1,6 @@
 import Food from '../models/Food.js';
+import User from '../models/User.js';
+import VolunteerAssignment from '../models/VolunteerAssignment.js';
 import ErrorResponse from '../config/ErrorResponse.js';
 import { v2 as cloudinary } from 'cloudinary';
 
@@ -55,8 +57,9 @@ export const getFoods = async (req, res, next) => {
     
     removeFields.forEach(param => delete reqQuery[param]);
 
-    // Add filters for active food
+    // Add filters for active and approved food
     reqQuery.isActive = true;
+    reqQuery.approvalStatus = 'approved';
 
     // Create query string
     let queryStr = JSON.stringify(reqQuery);
@@ -616,13 +619,21 @@ export const getFoodStats = async (req, res, next) => {
     const activeFoods = await Food.countDocuments({ isActive: true });
     const availableFoods = await Food.countDocuments({ 
       isActive: true, 
-      claimStatus: 'available' 
+      claimStatus: 'available',
+      approvalStatus: 'approved'
     });
     const claimedFoods = await Food.countDocuments({ 
       claimStatus: 'claimed' 
     });
     const completedFoods = await Food.countDocuments({ 
       claimStatus: 'completed' 
+    });
+    const pendingApproval = await Food.countDocuments({ 
+      approvalStatus: 'pending',
+      isActive: true
+    });
+    const rejectedFoods = await Food.countDocuments({ 
+      approvalStatus: 'rejected'
     });
 
     // Get category breakdown
@@ -639,8 +650,497 @@ export const getFoodStats = async (req, res, next) => {
         availableFoods,
         claimedFoods,
         completedFoods,
+        pendingApproval,
+        rejectedFoods,
         categoryStats
       }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// FOOD APPROVAL SYSTEM ENDPOINTS
+
+// @desc    Get pending food posts for approval
+// @route   GET /api/food/admin/pending
+// @access  Private/Volunteer/Admin
+export const getPendingFoodPosts = async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const startIndex = (page - 1) * limit;
+    
+    const query = {
+      approvalStatus: 'pending',
+      isActive: true
+    };
+    
+    const total = await Food.countDocuments(query);
+    const foods = await Food.find(query)
+      .populate('donor', 'name email phone')
+      .sort('-createdAt')
+      .skip(startIndex)
+      .limit(limit);
+
+    const pagination = {};
+    if (startIndex + limit < total) {
+      pagination.next = { page: page + 1, limit };
+    }
+    if (startIndex > 0) {
+      pagination.prev = { page: page - 1, limit };
+    }
+
+    res.status(200).json({
+      success: true,
+      count: foods.length,
+      total,
+      pagination,
+      data: foods
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Approve food post
+// @route   PUT /api/food/admin/:id/approve
+// @access  Private/Volunteer/Admin
+export const approveFoodPost = async (req, res, next) => {
+  try {
+    const food = await Food.findById(req.params.id);
+
+    if (!food) {
+      return next(new ErrorResponse(`Food not found with id of ${req.params.id}`, 404));
+    }
+
+    if (food.approvalStatus !== 'pending') {
+      return next(new ErrorResponse(`Food post is already ${food.approvalStatus}`, 400));
+    }
+
+    food.approvalStatus = 'approved';
+    food.approvedBy = req.user.id;
+    food.approvedAt = Date.now();
+    food.rejectionReason = undefined;
+
+    await food.save();
+
+    // Populate for response
+    await food.populate('donor', 'name email');
+    await food.populate('approvedBy', 'name email');
+
+    res.status(200).json({
+      success: true,
+      message: 'Food post approved successfully',
+      data: food
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Reject food post
+// @route   PUT /api/food/admin/:id/reject
+// @access  Private/Volunteer/Admin
+export const rejectFoodPost = async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+
+    if (!reason || reason.trim().length === 0) {
+      return next(new ErrorResponse('Rejection reason is required', 400));
+    }
+
+    const food = await Food.findById(req.params.id);
+
+    if (!food) {
+      return next(new ErrorResponse(`Food not found with id of ${req.params.id}`, 404));
+    }
+
+    if (food.approvalStatus !== 'pending') {
+      return next(new ErrorResponse(`Food post is already ${food.approvalStatus}`, 400));
+    }
+
+    food.approvalStatus = 'rejected';
+    food.approvedBy = req.user.id;
+    food.approvedAt = Date.now();
+    food.rejectionReason = reason.trim();
+
+    await food.save();
+
+    // Populate for response
+    await food.populate('donor', 'name email');
+    await food.populate('approvedBy', 'name email');
+
+    res.status(200).json({
+      success: true,
+      message: 'Food post rejected successfully',
+      data: food
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Helper function to calculate assignment score based on location proximity and volunteer availability
+const calculateAssignmentScore = (volunteer, foodPost) => {
+  let score = 100; // Base score
+  
+  // Location matching (higher score for same city)
+  if (volunteer.volunteerApplication?.serviceArea && foodPost.location?.city) {
+    const volunteerCity = volunteer.volunteerApplication.serviceArea.toLowerCase();
+    const foodCity = foodPost.location.city.toLowerCase();
+    
+    if (volunteerCity.includes(foodCity) || foodCity.includes(volunteerCity)) {
+      score += 50; // Same city bonus
+    }
+  }
+  
+  // Volunteer workload (lower score for busy volunteers)
+  // This would be calculated based on current assignments
+  // For now, we'll use a simple random factor
+  score += Math.random() * 20;
+  
+  return score;
+};
+
+// @desc    Auto-assign volunteer to approved food posts
+// @route   POST /api/food/auto-assign
+// @access  Private/Admin
+export const autoAssignVolunteers = async (req, res, next) => {
+  try {
+    // Find approved food posts that need volunteer assignment
+    const unassignedFoods = await Food.find({
+      approvalStatus: 'approved',
+      collectionStatus: 'not_assigned',
+      isActive: true
+    }).populate('donor', 'name email');
+
+    if (unassignedFoods.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'No food posts need volunteer assignment',
+        data: { assigned: 0 }
+      });
+    }
+
+    // Get available volunteers
+    const volunteers = await User.find({
+      role: { $in: ['volunteer', 'admin'] },
+      isActive: true,
+      'volunteerApplication.status': 'approved'
+    });
+
+    if (volunteers.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'No volunteers available for assignment',
+        data: { assigned: 0 }
+      });
+    }
+
+    let assignedCount = 0;
+    const assignments = [];
+
+    for (const food of unassignedFoods) {
+      // Calculate scores for all volunteers
+      const volunteerScores = volunteers.map(volunteer => ({
+        volunteer,
+        score: calculateAssignmentScore(volunteer, food)
+      }));
+
+      // Sort by score (highest first)
+      volunteerScores.sort((a, b) => b.score - a.score);
+
+      // Assign to the best volunteer
+      const bestVolunteer = volunteerScores[0].volunteer;
+      
+      // Update food post
+      food.volunteerAssigned = bestVolunteer._id;
+      food.collectionStatus = 'assigned';
+      await food.save();
+
+      // Create assignment record
+      const assignment = await VolunteerAssignment.create({
+        volunteer: bestVolunteer._id,
+        foodPost: food._id,
+        assignedBy: req.user.id,
+        assignmentType: 'auto',
+        assignmentScore: volunteerScores[0].score
+      });
+
+      assignments.push(assignment);
+      assignedCount++;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully auto-assigned ${assignedCount} food posts to volunteers`,
+      data: {
+        assigned: assignedCount,
+        assignments
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Assign volunteer to food post (Manual)
+// @route   PUT /api/food/:id/assign-volunteer
+// @access  Private/Admin
+export const assignVolunteer = async (req, res, next) => {
+  try {
+    const { volunteerId } = req.body;
+
+    if (!volunteerId) {
+      return next(new ErrorResponse('Volunteer ID is required', 400));
+    }
+
+    const food = await Food.findById(req.params.id);
+    if (!food) {
+      return next(new ErrorResponse(`Food not found with id of ${req.params.id}`, 404));
+    }
+
+    if (food.approvalStatus !== 'approved') {
+      return next(new ErrorResponse('Only approved food posts can be assigned to volunteers', 400));
+    }
+
+    // Verify volunteer exists and has volunteer role
+    const volunteer = await User.findById(volunteerId);
+    if (!volunteer || !['volunteer', 'admin'].includes(volunteer.role)) {
+      return next(new ErrorResponse('Invalid volunteer ID', 400));
+    }
+
+    // Check if already assigned
+    if (food.volunteerAssigned) {
+      return next(new ErrorResponse('Food post is already assigned to a volunteer', 400));
+    }
+
+    food.volunteerAssigned = volunteerId;
+    food.collectionStatus = 'assigned';
+    await food.save();
+
+    // Create assignment record
+    const assignment = await VolunteerAssignment.create({
+      volunteer: volunteerId,
+      foodPost: food._id,
+      assignedBy: req.user.id,
+      assignmentType: 'manual'
+    });
+
+    // Populate for response
+    await food.populate('volunteerAssigned', 'name email phone');
+    await food.populate('donor', 'name email');
+
+    res.status(200).json({
+      success: true,
+      message: 'Volunteer assigned successfully',
+      data: { food, assignment }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Update collection status with detailed tracking
+// @route   PUT /api/food/:id/collection-status
+// @access  Private/Volunteer/Admin
+export const updateCollectionStatus = async (req, res, next) => {
+  try {
+    const { status, notes, distributionDetails } = req.body;
+
+    if (!status || !['assigned', 'collected', 'distributed'].includes(status)) {
+      return next(new ErrorResponse('Valid collection status is required', 400));
+    }
+
+    const food = await Food.findById(req.params.id);
+    if (!food) {
+      return next(new ErrorResponse(`Food not found with id of ${req.params.id}`, 404));
+    }
+
+    // Only assigned volunteer or admin can update status
+    if (req.user.role !== 'admin' && food.volunteerAssigned?.toString() !== req.user.id) {
+      return next(new ErrorResponse('Not authorized to update this food post status', 403));
+    }
+
+    // Update food status
+    food.collectionStatus = status;
+    await food.save();
+
+    // Update assignment record
+    const assignment = await VolunteerAssignment.findOne({
+      foodPost: food._id,
+      volunteer: food.volunteerAssigned
+    });
+
+    if (assignment) {
+      assignment.status = status;
+      if (notes) assignment.notes = notes;
+      
+      // Update timestamps based on status
+      const now = new Date();
+      switch (status) {
+        case 'collected':
+          assignment.collectedAt = now;
+          break;
+        case 'distributed':
+          assignment.distributedAt = now;
+          if (distributionDetails) {
+            assignment.distributionDetails = distributionDetails;
+          }
+          break;
+      }
+      
+      await assignment.save();
+    }
+
+    // Populate for response
+    await food.populate('volunteerAssigned', 'name email phone');
+    await food.populate('donor', 'name email');
+
+    res.status(200).json({
+      success: true,
+      message: `Collection status updated to ${status}`,
+      data: { food, assignment }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Get volunteer assignments
+// @route   GET /api/food/volunteer/assignments
+// @access  Private/Volunteer/Admin
+export const getVolunteerAssignments = async (req, res, next) => {
+  try {
+    const { status, page = 1, limit = 10 } = req.query;
+    const startIndex = (page - 1) * limit;
+    
+    const query = { volunteer: req.user.id };
+    if (status) {
+      query.status = status;
+    }
+    
+    const total = await VolunteerAssignment.countDocuments(query);
+    const assignments = await VolunteerAssignment.find(query)
+      .populate({
+        path: 'foodPost',
+        populate: {
+          path: 'donor',
+          select: 'name email phone address'
+        }
+      })
+      .populate('assignedBy', 'name email')
+      .sort('-assignedAt')
+      .skip(startIndex)
+      .limit(parseInt(limit));
+
+    const pagination = {};
+    if (startIndex + parseInt(limit) < total) {
+      pagination.next = { page: parseInt(page) + 1, limit: parseInt(limit) };
+    }
+    if (startIndex > 0) {
+      pagination.prev = { page: parseInt(page) - 1, limit: parseInt(limit) };
+    }
+
+    res.status(200).json({
+      success: true,
+      count: assignments.length,
+      total,
+      pagination,
+      data: assignments
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Accept volunteer assignment
+// @route   PUT /api/food/volunteer/assignments/:id/accept
+// @access  Private/Volunteer
+export const acceptAssignment = async (req, res, next) => {
+  try {
+    const assignment = await VolunteerAssignment.findById(req.params.id);
+    
+    if (!assignment) {
+      return next(new ErrorResponse('Assignment not found', 404));
+    }
+    
+    if (assignment.volunteer.toString() !== req.user.id) {
+      return next(new ErrorResponse('Not authorized to accept this assignment', 403));
+    }
+    
+    if (assignment.status !== 'assigned') {
+      return next(new ErrorResponse('Assignment cannot be accepted in current status', 400));
+    }
+    
+    assignment.status = 'accepted';
+    assignment.acceptedAt = new Date();
+    await assignment.save();
+    
+    await assignment.populate({
+      path: 'foodPost',
+      populate: {
+        path: 'donor',
+        select: 'name email phone address'
+      }
+    });
+    
+    res.status(200).json({
+      success: true,
+      message: 'Assignment accepted successfully',
+      data: assignment
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Get available volunteers for assignment
+// @route   GET /api/food/volunteers/available
+// @access  Private/Admin
+export const getAvailableVolunteers = async (req, res, next) => {
+  try {
+    const { city, serviceArea } = req.query;
+    
+    let query = {
+      role: { $in: ['volunteer', 'admin'] },
+      isActive: true,
+      'volunteerApplication.status': 'approved'
+    };
+    
+    // Filter by service area if provided
+    if (city || serviceArea) {
+      const searchArea = city || serviceArea;
+      query['volunteerApplication.serviceArea'] = { 
+        $regex: searchArea, 
+        $options: 'i' 
+      };
+    }
+    
+    const volunteers = await User.find(query)
+      .select('name email phone volunteerApplication.serviceArea volunteerApplication.availability')
+      .sort('name');
+    
+    // Get current assignment counts for each volunteer
+    const volunteersWithStats = await Promise.all(
+      volunteers.map(async (volunteer) => {
+        const activeAssignments = await VolunteerAssignment.countDocuments({
+          volunteer: volunteer._id,
+          status: { $in: ['assigned', 'accepted', 'collected'] }
+        });
+        
+        return {
+          ...volunteer.toObject(),
+          activeAssignments
+        };
+      })
+    );
+    
+    res.status(200).json({
+      success: true,
+      count: volunteersWithStats.length,
+      data: volunteersWithStats
     });
   } catch (err) {
     next(err);
