@@ -676,3 +676,109 @@ export const resetPassword = async (req, res, next) => {
     next(err);
   }
 };
+
+// @desc    Apply for volunteer role
+// @route   POST /api/auth/apply-volunteer
+// @access  Private
+export const applyForVolunteer = async (req, res, next) => {
+  try {
+    const { motivation, serviceArea, availability } = req.body;
+    
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return next(new ErrorResponse('User not found', 404));
+    }
+    
+    if (user.role !== 'user') {
+      return next(new ErrorResponse('Only users can apply for volunteer role', 400));
+    }
+    
+    if (user.volunteerApplication.status === 'pending') {
+      return next(new ErrorResponse('You already have a pending volunteer application', 400));
+    }
+    
+    if (user.volunteerApplication.status === 'approved') {
+      return next(new ErrorResponse('You are already a volunteer', 400));
+    }
+    
+    user.volunteerApplication = {
+      status: 'pending',
+      appliedAt: new Date(),
+      motivation,
+      serviceArea,
+      availability
+    };
+    
+    await user.save();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Volunteer application submitted successfully. Please wait for admin review.',
+      data: user.volunteerApplication
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Get volunteer applications (Admin only)
+// @route   GET /api/auth/volunteer-applications
+// @access  Private/Admin
+export const getVolunteerApplications = async (req, res, next) => {
+  try {
+    const applications = await User.find({
+      'volunteerApplication.status': 'pending'
+    }).select('name email volunteerApplication createdAt');
+    
+    res.status(200).json({
+      success: true,
+      count: applications.length,
+      data: applications
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Review volunteer application (Admin only)
+// @route   PUT /api/auth/review-volunteer-application
+// @access  Private/Admin
+export const reviewVolunteerApplication = async (req, res, next) => {
+  try {
+    const { userId, action } = req.body; // action: 'approve' or 'reject'
+    
+    if (!['approve', 'reject'].includes(action)) {
+      return next(new ErrorResponse('Invalid action. Must be approve or reject', 400));
+    }
+    
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return next(new ErrorResponse('User not found', 404));
+    }
+    
+    if (user.volunteerApplication.status !== 'pending') {
+      return next(new ErrorResponse('No pending application found for this user', 400));
+    }
+    
+    user.volunteerApplication.status = action === 'approve' ? 'approved' : 'rejected';
+    user.volunteerApplication.reviewedBy = req.user.id;
+    user.volunteerApplication.reviewedAt = new Date();
+    
+    // Auto-promote to volunteer role if approved
+    if (action === 'approve') {
+      user.role = 'volunteer';
+    }
+    
+    await user.save();
+    
+    res.status(200).json({
+      success: true,
+      message: `Volunteer application ${action}d successfully`,
+      data: user
+    });
+  } catch (err) {
+    next(err);
+  }
+};

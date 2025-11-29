@@ -260,6 +260,66 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Apply for volunteer role
+  const applyForVolunteer = async (applicationData) => {
+    try {
+      setError(null);
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/auth/apply-volunteer`,
+        applicationData
+      );
+
+      if (response.data.success) {
+        // Update user data to reflect application status
+        const updatedUser = { ...user, volunteerApplication: response.data.data };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        return { success: true, message: response.data.message };
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || 'Application failed';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  };
+
+  // Get volunteer applications (Admin only)
+  const getVolunteerApplications = async () => {
+    try {
+      setError(null);
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/auth/volunteer-applications`
+      );
+
+      if (response.data.success) {
+        return { success: true, data: response.data.data };
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || 'Failed to fetch applications';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  };
+
+  // Review volunteer application (Admin only)
+  const reviewVolunteerApplication = async (userId, action) => {
+    try {
+      setError(null);
+      const response = await axios.put(
+        `${process.env.REACT_APP_API_URL}/auth/review-volunteer-application`,
+        { userId, action }
+      );
+
+      if (response.data.success) {
+        return { success: true, message: response.data.message };
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || 'Review failed';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -271,8 +331,14 @@ export const AuthProvider = ({ children }) => {
     requestPasswordChangeOtp,
     changePassword,
     googleLogin,
+    applyForVolunteer,
+    getVolunteerApplications,
+    reviewVolunteerApplication,
     isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin'
+    isAdmin: user?.role === 'admin',
+    isVolunteer: user?.role === 'volunteer',
+    isVolunteerOrAdmin: user?.role === 'volunteer' || user?.role === 'admin',
+    canApplyForVolunteer: user?.role === 'user' && user?.volunteerApplication?.status !== 'pending' && user?.volunteerApplication?.status !== 'approved'
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

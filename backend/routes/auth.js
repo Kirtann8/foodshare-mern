@@ -17,7 +17,10 @@ import {
   verifyEmail,
   resendVerification,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  applyForVolunteer,
+  getVolunteerApplications,
+  reviewVolunteerApplication
 } from '../controllers/authController.js';
 
 const router = express.Router();
@@ -64,6 +67,11 @@ router.get('/me', protect, getMe);
 router.put('/updatedetails', protect, validate(authSchemas.updateDetails), updateDetails);
 router.post('/request-password-change-otp', protect, passwordLimiter, validate(authSchemas.requestPasswordChangeOtp), requestPasswordChangeOtp);
 router.put('/updatepassword', protect, passwordLimiter, validate(authSchemas.updatePassword), updatePassword);
+
+// Volunteer application routes
+router.post('/apply-volunteer', protect, applyForVolunteer);
+router.get('/volunteer-applications', protect, authorize('admin'), getVolunteerApplications);
+router.put('/review-volunteer-application', protect, authorize('admin'), reviewVolunteerApplication);
 
 // Admin routes
 router.get('/users', protect, authorize('admin'), getUsers);

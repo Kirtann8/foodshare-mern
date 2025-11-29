@@ -36,8 +36,34 @@ const UserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['user', 'volunteer', 'admin'],
     default: 'user'
+  },
+  // Volunteer application fields
+  volunteerApplication: {
+    status: {
+      type: String,
+      enum: ['none', 'pending', 'approved', 'rejected'],
+      default: 'none'
+    },
+    appliedAt: Date,
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    reviewedAt: Date,
+    motivation: {
+      type: String,
+      maxlength: [500, 'Motivation cannot exceed 500 characters']
+    },
+    serviceArea: {
+      type: String,
+      trim: true
+    },
+    availability: {
+      type: String,
+      trim: true
+    }
   },
   phone: {
     type: String,

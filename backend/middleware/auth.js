@@ -58,3 +58,16 @@ export const authorize = (...roles) => {
     next();
   };
 };
+
+// Grant access to volunteers and admins
+export const authorizeVolunteerOrAdmin = (req, res, next) => {
+  if (!['volunteer', 'admin'].includes(req.user.role)) {
+    return next(
+      new ErrorResponse(
+        `User role '${req.user.role}' is not authorized to access this route`,
+        403
+      )
+    );
+  }
+  next();
+};

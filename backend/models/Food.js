@@ -89,6 +89,36 @@ const FoodSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  // Approval system fields
+  approvalStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
+  },
+  approvedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  approvedAt: {
+    type: Date,
+    default: null
+  },
+  rejectionReason: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Rejection reason cannot exceed 500 characters']
+  },
+  volunteerAssigned: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  collectionStatus: {
+    type: String,
+    enum: ['not_assigned', 'assigned', 'collected', 'distributed'],
+    default: 'not_assigned'
+  },
   isActive: {
     type: Boolean,
     default: true
@@ -110,11 +140,17 @@ FoodSchema.index({ 'location.city': 1 });
 FoodSchema.index({ isActive: 1 });
 FoodSchema.index({ createdAt: -1 });
 FoodSchema.index({ expiryDate: 1 });
+FoodSchema.index({ approvalStatus: 1 });
+FoodSchema.index({ approvedBy: 1 });
+FoodSchema.index({ volunteerAssigned: 1 });
+FoodSchema.index({ collectionStatus: 1 });
 
 // Compound indexes for common queries
 FoodSchema.index({ claimStatus: 1, isActive: 1, createdAt: -1 });
 FoodSchema.index({ donor: 1, claimStatus: 1 });
 FoodSchema.index({ 'location.city': 1, claimStatus: 1 });
+FoodSchema.index({ approvalStatus: 1, isActive: 1, createdAt: -1 });
+FoodSchema.index({ volunteerAssigned: 1, collectionStatus: 1 });
 
 // Update claim status to expired if expiry date has passed
 FoodSchema.pre('save', function(next) {
