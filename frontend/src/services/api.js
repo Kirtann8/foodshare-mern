@@ -165,6 +165,56 @@ export const foodAPI = {
     } catch (error) {
       throw error.response?.data || error;
     }
+  },
+
+  // Enhanced AI food quality assessment
+  assessFoodQuality: async (data) => {
+    try {
+      const response = await axiosInstance.post('/food/assess-quality', data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Check AI service status
+  checkAIStatus: async () => {
+    try {
+      const response = await axiosInstance.get('/food/ai-status');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Get AI models status (Admin only)
+  getAIModelsStatus: async () => {
+    try {
+      const response = await axiosInstance.get('/food/ai-models');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Batch assess multiple food images
+  batchAssessFoodQuality: async (images) => {
+    try {
+      const response = await axiosInstance.post('/food/assess-quality', { images });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Test AI service (Admin only)
+  testAIService: async () => {
+    try {
+      const response = await axiosInstance.post('/food/test-ai');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   }
 };
 
@@ -345,6 +395,16 @@ export const adminAPI = {
       const queryString = new URLSearchParams(params).toString();
       const url = queryString ? `/food/volunteers/available?${queryString}` : '/food/volunteers/available';
       const response = await axiosInstance.get(url);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  // Get assigned foods for volunteer
+  getAssignedFoods: async (page = 1, limit = 10) => {
+    try {
+      const response = await axiosInstance.get(`/food/volunteer/assigned-foods?page=${page}&limit=${limit}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

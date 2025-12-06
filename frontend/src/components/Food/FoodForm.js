@@ -2,6 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
 import { foodAPI } from '../../services/api';
+import FoodQualityScanner from '../AI/FoodQualityScanner';
 
 const FoodForm = () => {
   const { user } = useContext(AuthContext);
@@ -37,6 +38,7 @@ const FoodForm = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [aiAssessment, setAiAssessment] = useState(null);
 
   // Fetch existing food data when in edit mode
   useEffect(() => {
@@ -140,6 +142,8 @@ const FoodForm = () => {
       if (response.success) {
         setImages(prevImages => [...prevImages, response.data.url]);
         setError('');
+        // Clear the file input
+        e.target.value = '';
       }
     } catch (err) {
       console.error('Upload error:', err);
@@ -280,6 +284,54 @@ const FoodForm = () => {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all resize-none"
             />
           </div>
+
+          <div className="mb-6">
+            <FoodQualityScanner 
+              onAssessmentComplete={(result) => {
+                setAiAssessment(result);
+                
+                // Auto-populate fields based on AI assessment
+                if (result.shelf_life_days) {
+                  const newExpiry = new Date();
+                  newExpiry.setDate(newExpiry.getDate() + result.shelf_life_days);
+                  setFormData(prev => ({
+                    ...prev,
+                    expiryDate: newExpiry.toISOString().split('T')[0],
+                    quantity: result.estimated_servings ? `${result.estimated_servings} servings` : prev.quantity
+                  }));
+                }
+                
+                // Add captured image to form images if it exists
+                if (result.captured_image && !images.includes(result.captured_image)) {
+                  setImages(prevImages => [result.captured_image, ...prevImages]);
+                }
+              }}
+              className="mb-6"
+            />
+          </div>
+
+          {aiAssessment && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-4">
+                {aiAssessment.captured_image && (
+                  <img 
+                    src={aiAssessment.captured_image} 
+                    alt="AI scanned food" 
+                    className="w-20 h-20 object-cover rounded-lg border-2 border-blue-300 flex-shrink-0"
+                  />
+                )}
+                <div className="flex-1">
+                  <h4 className="font-semibold text-blue-800 mb-2">🤖 AI Assessment Applied</h4>
+                  <div className="text-sm text-blue-700">
+                    {aiAssessment.food_type && `Food: ${aiAssessment.food_type} | `}
+                    Quality: {aiAssessment.quality_grade} | 
+                    Freshness: {aiAssessment.freshness_score}% | 
+                    Shelf Life: {aiAssessment.shelf_life_days} days
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="mb-4">
             <label htmlFor="image" className="block text-gray-700 font-medium mb-2">Food Images</label>

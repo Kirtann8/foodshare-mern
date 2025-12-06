@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 */node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
 
 # Environment variables
 .env
@@ -8,17 +12,13 @@ node_modules/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*.local
 
 # Build outputs
 build/
 dist/
-
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+*.tgz
+*.tar.gz
 
 # Runtime data
 pids
@@ -28,12 +28,37 @@ pids
 
 # Coverage directory used by tools like istanbul
 coverage/
+*.lcov
+.nyc_output
+
+# Logs
+logs
+*.log
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
 
 # IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS generated files
 .DS_Store
@@ -44,6 +69,31 @@ coverage/
 ehthumbs.db
 Thumbs.db
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv/
+
 # Uploads directory (for development)
 backend/uploads/*
 !backend/uploads/.gitkeep
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache
+.cache/
+.parcel-cache/

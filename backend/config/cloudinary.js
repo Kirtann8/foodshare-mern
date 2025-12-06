@@ -1,6 +1,6 @@
 import { v2 as cloudinary } from 'cloudinary';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import multer from 'multer';
+import { Readable } from 'stream';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -12,17 +12,47 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Configure Cloudinary storage
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'foodshare', // The name of the folder in cloudinary
-    allowed_formats: ['jpg', 'jpeg', 'png', 'gif'],
-    transformation: [{ width: 500, height: 500, crop: 'limit' }] // Optional image transformation
+// Custom storage engine for Cloudinary
+const storage = multer.memoryStorage();
+
+// Create multer upload middleware
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(file.originalname.toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
   }
 });
 
-// Create multer upload middleware
-const upload = multer({ storage: storage });
+// Function to upload to Cloudinary
+const uploadToCloudinary = (buffer, options = {}) => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: 'foodshare',
+        transformation: [{ width: 500, height: 500, crop: 'limit' }],
+        ...options
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    );
+    
+    const stream = Readable.from(buffer);
+    stream.pipe(uploadStream);
+  });
+};
 
+export { upload, uploadToCloudinary };
 export default upload;

@@ -19,8 +19,12 @@ import MyClaims from './components/Food/MyClaims';
 import AdminPanel from './components/Admin/AdminPanel';
 import VolunteerApplication from './components/Auth/VolunteerApplication';
 import VolunteerPanel from './components/Volunteer/VolunteerPanel';
+import VolunteerAssignments from './components/Volunteer/VolunteerAssignments';
+import FoodApproval from './components/Admin/FoodApproval';
+import VolunteerAssignmentManager from './components/Admin/VolunteerAssignmentManager';
 import ChatList from './components/Chat/ChatList';
 import ChatWindow from './components/Chat/ChatWindow';
+import UserDashboard from './components/Dashboard/UserDashboard';
 
 function App() {
   return (
@@ -34,11 +38,21 @@ function App() {
                 {/* Public Routes */}
                 <Route path="/" element={<FoodList />} />
                 <Route path="/home" element={<Home />} />
+                <Route path="/browse-food" element={<FoodList />} />
+                <Route path="/share-food" element={<ProtectedRoute><FoodForm /></ProtectedRoute>} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/food/:id" element={<FoodDetail />} />
 
               {/* Protected Routes */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <UserDashboard />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/profile"
                 element={
@@ -103,6 +117,14 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/volunteer/assignments"
+                element={
+                  <ProtectedRoute volunteerOnly={true}>
+                    <VolunteerAssignments />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Chat Routes */}
               <Route
@@ -130,6 +152,22 @@ function App() {
                 element={
                   <ProtectedRoute adminOnly={true}>
                     <AdminPanel />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/food-approval"
+                element={
+                  <ProtectedRoute volunteerOnly={true}>
+                    <FoodApproval />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/volunteer-assignments"
+                element={
+                  <ProtectedRoute adminOnly={true}>
+                    <VolunteerAssignmentManager />
                   </ProtectedRoute>
                 }
               />

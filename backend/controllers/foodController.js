@@ -3,6 +3,9 @@ import User from '../models/User.js';
 import VolunteerAssignment from '../models/VolunteerAssignment.js';
 import ErrorResponse from '../config/ErrorResponse.js';
 import { v2 as cloudinary } from 'cloudinary';
+import { sendFoodApprovalNotification, sendVolunteerAssignmentNotification, sendFoodClaimNotification, sendFoodCompletionNotification, sendCollectionStatusNotification } from '../services/notificationService.js';
+import { notifyFoodApproval, notifyVolunteerAssignment, notifyFoodClaim, notifyAssignmentAcceptance, notifyCollectionStatusUpdate } from '../services/socketService.js';
+import axios from 'axios';
 
 // Helper function to extract public_id from Cloudinary URL
 const extractPublicId = (url) => {
@@ -60,6 +63,21 @@ export const getFoods = async (req, res, next) => {
     // Add filters for active and approved food
     reqQuery.isActive = true;
     reqQuery.approvalStatus = 'approved';
+    
+    // If specifically filtering for available, exclude distributed and completed
+    if (reqQuery.claimStatus === 'available') {
+      reqQuery.claimStatus = 'available';
+      reqQuery.collectionStatus = { $nin: ['distributed', 'completed'] };
+    }
+    // If filtering for claimed, include distributed food
+    else if (reqQuery.claimStatus === 'claimed') {
+      // Don't add collection status filter for claimed - let distributed food show as claimed
+    }
+    // For other filters, exclude distributed food
+    else if (!reqQuery.claimStatus || reqQuery.claimStatus === '') {
+      // Show all except distributed when no specific claim status filter
+      reqQuery.collectionStatus = { $ne: 'distributed' };
+    }
 
     // Create query string
     let queryStr = JSON.stringify(reqQuery);
@@ -346,30 +364,23 @@ export const claimFood = async (req, res, next) => {
     await food.populate('donor', 'name email');
     await food.populate('claimedBy', 'name email');
 
-    // Emit real-time event to notify donor and all connected clients
+    // Send email notification to donor
+    try {
+      await sendFoodClaimNotification({
+        email: food.donor.email,
+        name: food.donor.name,
+        foodTitle: food.title,
+        claimerName: req.user.name,
+        claimerEmail: req.user.email
+      });
+    } catch (emailError) {
+      console.error('Failed to send claim email:', emailError);
+    }
+
+    // Send real-time notification
     const io = req.app.locals.io;
     if (io) {
-      const eventData = {
-        foodId: food._id,
-        foodTitle: food.title,
-        claimedBy: {
-          id: req.user.id,
-          name: req.user.name
-        },
-        donor: {
-          id: food.donor._id,
-          name: food.donor.name
-        },
-        timestamp: new Date()
-      };
-
-      // Emit to all connected clients
-      io.emit('foodClaimed', eventData);
-
-      // Also emit to specific donor's room if they're connected
-      io.to(`user_${food.donor._id}`).emit('foodClaimedNotification', eventData);
-      
-      console.log('Socket event emitted: foodClaimed', eventData);
+      notifyFoodClaim(io, food, req.user);
     }
 
     res.status(200).json({
@@ -403,6 +414,20 @@ export const completeFood = async (req, res, next) => {
     // Populate the food data for socket emission
     await food.populate('donor', 'name email');
     await food.populate('claimedBy', 'name email');
+
+    // Send email notification to claimer if food was claimed
+    if (food.claimedBy) {
+      try {
+        await sendFoodCompletionNotification({
+          email: food.claimedBy.email,
+          name: food.claimedBy.name,
+          foodTitle: food.title,
+          donorName: food.donor.name
+        });
+      } catch (emailError) {
+        console.error('Failed to send completion email to claimer:', emailError);
+      }
+    }
 
     // Emit real-time event to notify claimer and all connected clients
     const io = req.app.locals.io;
@@ -729,6 +754,24 @@ export const approveFoodPost = async (req, res, next) => {
     await food.populate('donor', 'name email');
     await food.populate('approvedBy', 'name email');
 
+    // Send email notification
+    try {
+      await sendFoodApprovalNotification({
+        email: food.donor.email,
+        name: food.donor.name,
+        foodTitle: food.title,
+        status: 'approved'
+      });
+    } catch (emailError) {
+      console.error('Failed to send approval email:', emailError);
+    }
+
+    // Send real-time notification
+    const io = req.app.locals.io;
+    if (io) {
+      notifyFoodApproval(io, food, req.user, 'approved');
+    }
+
     res.status(200).json({
       success: true,
       message: 'Food post approved successfully',
@@ -771,6 +814,25 @@ export const rejectFoodPost = async (req, res, next) => {
     await food.populate('donor', 'name email');
     await food.populate('approvedBy', 'name email');
 
+    // Send email notification
+    try {
+      await sendFoodApprovalNotification({
+        email: food.donor.email,
+        name: food.donor.name,
+        foodTitle: food.title,
+        status: 'rejected',
+        reason: reason.trim()
+      });
+    } catch (emailError) {
+      console.error('Failed to send rejection email:', emailError);
+    }
+
+    // Send real-time notification
+    const io = req.app.locals.io;
+    if (io) {
+      notifyFoodApproval(io, food, req.user, 'rejected');
+    }
+
     res.status(200).json({
       success: true,
       message: 'Food post rejected successfully',
@@ -782,7 +844,7 @@ export const rejectFoodPost = async (req, res, next) => {
 };
 
 // Helper function to calculate assignment score based on location proximity and volunteer availability
-const calculateAssignmentScore = (volunteer, foodPost) => {
+const calculateAssignmentScore = async (volunteer, foodPost) => {
   let score = 100; // Base score
   
   // Location matching (higher score for same city)
@@ -791,16 +853,23 @@ const calculateAssignmentScore = (volunteer, foodPost) => {
     const foodCity = foodPost.location.city.toLowerCase();
     
     if (volunteerCity.includes(foodCity) || foodCity.includes(volunteerCity)) {
-      score += 50; // Same city bonus
+      score += 100; // Same city bonus (increased)
+    } else {
+      // Penalty for different cities
+      score -= 50;
     }
   }
   
   // Volunteer workload (lower score for busy volunteers)
-  // This would be calculated based on current assignments
-  // For now, we'll use a simple random factor
-  score += Math.random() * 20;
+  const activeAssignments = await VolunteerAssignment.countDocuments({
+    volunteer: volunteer._id,
+    status: { $in: ['assigned', 'accepted', 'collected'] }
+  });
   
-  return score;
+  // Reduce score based on current workload
+  score -= (activeAssignments * 25);
+  
+  return Math.max(score, 0); // Ensure score doesn't go negative
 };
 
 // @desc    Auto-assign volunteer to approved food posts
@@ -843,10 +912,12 @@ export const autoAssignVolunteers = async (req, res, next) => {
 
     for (const food of unassignedFoods) {
       // Calculate scores for all volunteers
-      const volunteerScores = volunteers.map(volunteer => ({
-        volunteer,
-        score: calculateAssignmentScore(volunteer, food)
-      }));
+      const volunteerScores = await Promise.all(
+        volunteers.map(async volunteer => ({
+          volunteer,
+          score: await calculateAssignmentScore(volunteer, food)
+        }))
+      );
 
       // Sort by score (highest first)
       volunteerScores.sort((a, b) => b.score - a.score);
@@ -932,6 +1003,25 @@ export const assignVolunteer = async (req, res, next) => {
     await food.populate('volunteerAssigned', 'name email phone');
     await food.populate('donor', 'name email');
 
+    // Send email notification to volunteer
+    try {
+      await sendVolunteerAssignmentNotification({
+        email: volunteer.email,
+        name: volunteer.name,
+        foodTitle: food.title,
+        donorName: food.donor.name,
+        pickupAddress: food.location.address
+      });
+    } catch (emailError) {
+      console.error('Failed to send assignment email:', emailError);
+    }
+
+    // Send real-time notification
+    const io = req.app.locals.io;
+    if (io) {
+      notifyVolunteerAssignment(io, assignment, food, volunteer);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Volunteer assigned successfully',
@@ -963,8 +1053,14 @@ export const updateCollectionStatus = async (req, res, next) => {
       return next(new ErrorResponse('Not authorized to update this food post status', 403));
     }
 
-    // Update food status
+    // Update food status and sync claim status
     food.collectionStatus = status;
+    
+    // Update claim status based on collection status
+    if (status === 'distributed' || status === 'collected') {
+      food.claimStatus = 'claimed';
+    }
+    
     await food.save();
 
     // Update assignment record
@@ -997,6 +1093,25 @@ export const updateCollectionStatus = async (req, res, next) => {
     // Populate for response
     await food.populate('volunteerAssigned', 'name email phone');
     await food.populate('donor', 'name email');
+
+    // Send email notification to donor about collection status update
+    try {
+      await sendCollectionStatusNotification({
+        email: food.donor.email,
+        name: food.donor.name,
+        foodTitle: food.title,
+        status,
+        distributionDetails
+      });
+    } catch (emailError) {
+      console.error('Failed to send collection status email:', emailError);
+    }
+
+    // Send real-time notification
+    const io = req.app.locals.io;
+    if (io) {
+      notifyCollectionStatusUpdate(io, food, req.user, status, distributionDetails);
+    }
 
     res.status(200).json({
       success: true,
@@ -1085,10 +1200,65 @@ export const acceptAssignment = async (req, res, next) => {
         select: 'name email phone address'
       }
     });
+
+    // Send real-time notification
+    const io = req.app.locals.io;
+    if (io) {
+      notifyAssignmentAcceptance(io, assignment, assignment.foodPost, req.user);
+    }
     
     res.status(200).json({
       success: true,
       message: 'Assignment accepted successfully',
+      data: assignment
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Reject volunteer assignment
+// @route   PUT /api/food/volunteer/assignments/:id/reject
+// @access  Private/Volunteer
+export const rejectAssignment = async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+    
+    if (!reason || reason.trim().length === 0) {
+      return next(new ErrorResponse('Rejection reason is required', 400));
+    }
+    
+    const assignment = await VolunteerAssignment.findById(req.params.id);
+    
+    if (!assignment) {
+      return next(new ErrorResponse('Assignment not found', 404));
+    }
+    
+    if (assignment.volunteer.toString() !== req.user.id) {
+      return next(new ErrorResponse('Not authorized to reject this assignment', 403));
+    }
+    
+    if (assignment.status !== 'assigned') {
+      return next(new ErrorResponse('Assignment cannot be rejected in current status', 400));
+    }
+    
+    // Update assignment status
+    assignment.status = 'rejected';
+    assignment.rejectedAt = new Date();
+    assignment.rejectionReason = reason.trim();
+    await assignment.save();
+    
+    // Reset food post volunteer assignment
+    const food = await Food.findById(assignment.foodPost);
+    if (food) {
+      food.volunteerAssigned = null;
+      food.collectionStatus = 'not_assigned';
+      await food.save();
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Assignment rejected successfully',
       data: assignment
     });
   } catch (err) {
@@ -1109,7 +1279,7 @@ export const getAvailableVolunteers = async (req, res, next) => {
       'volunteerApplication.status': 'approved'
     };
     
-    // Filter by service area if provided
+    // Prioritize volunteers from the same city
     if (city || serviceArea) {
       const searchArea = city || serviceArea;
       query['volunteerApplication.serviceArea'] = { 
@@ -1130,12 +1300,31 @@ export const getAvailableVolunteers = async (req, res, next) => {
           status: { $in: ['assigned', 'accepted', 'collected'] }
         });
         
+        // Calculate city match score for better assignment
+        let cityMatchScore = 0;
+        if (city && volunteer.volunteerApplication?.serviceArea) {
+          const volunteerCity = volunteer.volunteerApplication.serviceArea.toLowerCase();
+          const foodCity = city.toLowerCase();
+          if (volunteerCity.includes(foodCity) || foodCity.includes(volunteerCity)) {
+            cityMatchScore = 100;
+          }
+        }
+        
         return {
           ...volunteer.toObject(),
-          activeAssignments
+          activeAssignments,
+          cityMatchScore
         };
       })
     );
+    
+    // Sort by city match score first, then by active assignments
+    volunteersWithStats.sort((a, b) => {
+      if (a.cityMatchScore !== b.cityMatchScore) {
+        return b.cityMatchScore - a.cityMatchScore;
+      }
+      return a.activeAssignments - b.activeAssignments;
+    });
     
     res.status(200).json({
       success: true,
@@ -1144,5 +1333,252 @@ export const getAvailableVolunteers = async (req, res, next) => {
     });
   } catch (err) {
     next(err);
+  }
+};
+// @desc    Get food posts assigned to current volunteer
+// @route   GET /api/food/volunteer/assigned-foods
+// @access  Private/Volunteer/Admin
+// @desc    Test AI service with sample data
+// @route   POST /api/food/test-ai
+// @access  Private/Admin
+export const testAIService = async (req, res, next) => {
+  try {
+    console.log('Testing AI service...');
+    
+    const response = await axios.post('http://localhost:5001/test-prediction', {}, {
+      timeout: 30000
+    });
+    
+    res.status(200).json({
+      success: true,
+      testResult: response.data,
+      message: 'AI service test completed successfully'
+    });
+    
+  } catch (error) {
+    console.error('AI service test failed:', error.message);
+    
+    if (error.code === 'ECONNREFUSED') {
+      return next(new ErrorResponse('AI service is not running', 503));
+    }
+    
+    next(new ErrorResponse('AI service test failed', 500));
+  }
+};
+
+export const getAssignedFoods = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const startIndex = (page - 1) * limit;
+    
+    // Find food posts assigned to current volunteer
+    const query = {
+      volunteerAssigned: req.user.id,
+      isActive: true
+    };
+    
+    const total = await Food.countDocuments(query);
+    const foods = await Food.find(query)
+      .populate({
+        path: 'donor',
+        select: 'name email phone address'
+      })
+      .populate('volunteerAssigned', 'name email phone')
+      .sort('-createdAt')
+      .skip(startIndex)
+      .limit(parseInt(limit));
+
+    const pagination = {};
+    if (startIndex + parseInt(limit) < total) {
+      pagination.next = { page: parseInt(page) + 1, limit: parseInt(limit) };
+    }
+    if (startIndex > 0) {
+      pagination.prev = { page: parseInt(page) - 1, limit: parseInt(limit) };
+    }
+
+    res.status(200).json({
+      success: true,
+      count: foods.length,
+      total,
+      pagination,
+      data: foods
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Assess food quality using AI
+// @route   POST /api/food/assess-quality
+// @access  Private
+export const assessFoodQuality = async (req, res, next) => {
+  try {
+    const { image, images } = req.body;
+    
+    if (!image && !images) {
+      return next(new ErrorResponse('Image data is required for assessment', 400));
+    }
+
+    // Prepare request data
+    const requestData = {};
+    if (images) {
+      requestData.images = images;
+    } else {
+      requestData.image = image;
+    }
+
+    console.log('Calling AI service for food assessment...');
+    
+    // Call Enhanced Python CV service with retry logic
+    let response;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      try {
+        response = await axios.post('http://localhost:5001/assess-food', requestData, {
+          timeout: 45000, // 45 second timeout for enhanced processing
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        break; // Success, exit retry loop
+      } catch (retryError) {
+        attempts++;
+        console.log(`AI service attempt ${attempts} failed:`, retryError.message);
+        
+        if (attempts >= maxAttempts) {
+          throw retryError; // Re-throw the last error
+        }
+        
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+      }
+    }
+
+    // Check if AI service returned an error
+    if (!response.data.success) {
+      return next(new ErrorResponse(response.data.error || 'AI assessment failed', 400));
+    }
+
+    console.log('AI assessment completed successfully');
+    
+    res.status(200).json({
+      success: true,
+      data: response.data.data,
+      message: 'Food quality assessment completed',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('CV Assessment Error:', error.message);
+    
+    // Handle different types of errors
+    if (error.code === 'ECONNREFUSED') {
+      return next(new ErrorResponse(
+        'AI service is not running. Please start the Enhanced AI service using: npm run start-cv or python scripts/start_ai_service.py', 
+        503
+      ));
+    }
+    
+    if (error.code === 'ETIMEDOUT') {
+      return next(new ErrorResponse(
+        'AI service timeout. The image might be too large or complex. Please try with a smaller image.', 
+        408
+      ));
+    }
+    
+    if (error.response?.status === 400) {
+      return next(new ErrorResponse(
+        error.response.data?.error || 'Invalid image data provided', 
+        400
+      ));
+    }
+    
+    if (error.response?.status === 500) {
+      return next(new ErrorResponse(
+        'AI service internal error. Please try again or contact support.', 
+        500
+      ));
+    }
+    
+    // Generic error
+    next(new ErrorResponse(
+      `Food quality assessment failed: ${error.message}. Please ensure the AI service is running and try again.`, 
+      500
+    ));
+  }
+};
+
+// @desc    Check AI service status
+// @route   GET /api/food/ai-status
+// @access  Private
+export const checkAIServiceStatus = async (req, res, next) => {
+  try {
+    console.log('Checking AI service status...');
+    
+    const response = await axios.get('http://localhost:5001/health', {
+      timeout: 10000 // 10 second timeout
+    });
+    
+    res.status(200).json({
+      success: true,
+      aiService: {
+        status: 'running',
+        ...response.data
+      }
+    });
+    
+  } catch (error) {
+    console.error('AI service status check failed:', error.message);
+    
+    let statusMessage = 'AI service is not responding';
+    let statusCode = 503;
+    
+    if (error.code === 'ECONNREFUSED') {
+      statusMessage = 'AI service is not running. Please start it using: npm run start-cv';
+    } else if (error.code === 'ETIMEDOUT') {
+      statusMessage = 'AI service is not responding (timeout)';
+    }
+    
+    res.status(statusCode).json({
+      success: false,
+      aiService: {
+        status: 'offline',
+        error: statusMessage,
+        instructions: [
+          'Start the AI service: npm run start-cv',
+          'Or manually: python scripts/start_ai_service.py',
+          'Or use batch file: scripts/start-enhanced-ai.bat'
+        ]
+      }
+    });
+  }
+};
+
+// @desc    Get AI service models status
+// @route   GET /api/food/ai-models
+// @access  Private/Admin
+export const getAIModelsStatus = async (req, res, next) => {
+  try {
+    console.log('Checking AI models status...');
+    
+    const response = await axios.get('http://localhost:5001/models/status', {
+      timeout: 15000 // 15 second timeout
+    });
+    
+    res.status(200).json({
+      success: true,
+      models: response.data
+    });
+    
+  } catch (error) {
+    console.error('AI models status check failed:', error.message);
+    
+    if (error.code === 'ECONNREFUSED') {
+      return next(new ErrorResponse('AI service is not running', 503));
+    }
+    
+    next(new ErrorResponse('Failed to check AI models status', 500));
   }
 };

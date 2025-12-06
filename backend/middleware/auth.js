@@ -14,9 +14,14 @@ export const protect = async (req, res, next) => {
   else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
   }
+  // Additional fallback for direct token in headers
+  else if (req.headers['x-auth-token']) {
+    token = req.headers['x-auth-token'];
+  }
 
   // Make sure token exists
   if (!token) {
+    console.log('No token found in request');
     return next(new ErrorResponse('Not authorized to access this route', 401));
   }
 
@@ -37,6 +42,7 @@ export const protect = async (req, res, next) => {
 
     next();
   } catch (err) {
+    console.log('Token verification failed:', err.message);
     if (err.name === 'TokenExpiredError') {
       return next(new ErrorResponse('Token expired, please refresh your token', 401));
     }
