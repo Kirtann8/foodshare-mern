@@ -39,8 +39,16 @@ const FoodDetail = () => {
 
     try {
       setActionLoading(true);
-      await foodAPI.claimFood(id);
-      fetchFoodDetail(); // Refresh data
+      const response = await foodAPI.claimFood(id);
+      
+      // Update state with the response data instead of refetching
+      if (response.data) {
+        setFood(response.data);
+      } else {
+        // Fallback to refetch if no data in response
+        await fetchFoodDetail();
+      }
+      
       alert('Food claimed successfully!');
     } catch (err) {
       alert(err.error || 'Failed to claim food');
@@ -97,8 +105,9 @@ const FoodDetail = () => {
   if (error) return <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">{error}</div>;
   if (!food) return <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">Food not found</div>;
 
-  const isDonor = user && user.id === food.donor._id;
-  const canClaim = isAuthenticated && food.claimStatus === 'available' && !isDonor;
+  const isDonor = user && food.donor && user.id === food.donor._id;
+  const isVolunteerAssigned = food.collectionStatus && food.collectionStatus !== 'not_assigned';
+  const canClaim = isAuthenticated && food.claimStatus === 'available' && !isDonor && !isVolunteerAssigned;
   const canComplete = isDonor && food.claimStatus === 'claimed';
 
   return (
@@ -106,12 +115,21 @@ const FoodDetail = () => {
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
         <div className="p-4 sm:p-6 lg:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-200">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800">{food.title}</h1>
-          <span 
-            className="px-4 sm:px-6 py-2 sm:py-3 rounded-lg text-xs sm:text-sm font-semibold uppercase text-white whitespace-nowrap" 
-            style={{ backgroundColor: getStatusColor(food.claimStatus) }}
-          >
-            {food.claimStatus}
-          </span>
+          <div className="flex flex-col sm:flex-row gap-2">
+            {/* Show collection status if assigned to volunteer, otherwise show claim status */}
+            {food.collectionStatus && food.collectionStatus !== 'not_assigned' ? (
+              <span className="px-4 sm:px-6 py-2 sm:py-3 rounded-lg text-xs sm:text-sm font-semibold uppercase text-white whitespace-nowrap bg-purple-600">
+                {food.collectionStatus.replace('_', ' ')}
+              </span>
+            ) : (
+              <span 
+                className="px-4 sm:px-6 py-2 sm:py-3 rounded-lg text-xs sm:text-sm font-semibold uppercase text-white whitespace-nowrap" 
+                style={{ backgroundColor: getStatusColor(food.claimStatus) }}
+              >
+                {food.claimStatus}
+              </span>
+            )}
+          </div>
         </div>
 
         {food.images && food.images.length > 0 && (
@@ -163,22 +181,24 @@ const FoodDetail = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div className="flex flex-col gap-1">
                 <strong className="text-gray-600 text-xs sm:text-sm font-semibold">Start Time:</strong>
-                <span className="text-gray-800 text-xs sm:text-base">{formatDate(food.pickupTiming.startTime)}</span>
+                <span className="text-gray-800 text-xs sm:text-base">{food.pickupTiming?.startTime ? formatDate(food.pickupTiming.startTime) : 'Not specified'}</span>
               </div>
               <div className="flex flex-col gap-1">
                 <strong className="text-gray-600 text-xs sm:text-sm font-semibold">End Time:</strong>
-                <span className="text-gray-800 text-xs sm:text-base">{formatDate(food.pickupTiming.endTime)}</span>
+                <span className="text-gray-800 text-xs sm:text-base">{food.pickupTiming?.endTime ? formatDate(food.pickupTiming.endTime) : 'Not specified'}</span>
               </div>
             </div>
           </section>
 
-          <section className="mb-6 sm:mb-8">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Location</h2>
-            <div className="text-sm sm:text-base text-gray-700">
-              <p className="mb-2">{food.location.address}</p>
-              <p>{food.location.city}, {food.location.state} {food.location.zipCode}</p>
-            </div>
-          </section>
+          {food.location && (
+            <section className="mb-6 sm:mb-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Location</h2>
+              <div className="text-sm sm:text-base text-gray-700">
+                <p className="mb-2">{food.location.address}</p>
+                <p>{food.location.city}, {food.location.state} {food.location.zipCode}</p>
+              </div>
+            </section>
+          )}
 
           <section className="mb-6 sm:mb-8">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Dietary Information</h2>
@@ -194,14 +214,16 @@ const FoodDetail = () => {
             </div>
           </section>
 
-          <section className="mb-6 sm:mb-8">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Donor Information</h2>
-            <div className="text-sm sm:text-base text-gray-700">
-              <p className="mb-2"><strong>Name:</strong> {food.donor.name}</p>
-              <p className="mb-2"><strong>Email:</strong> {food.donor.email}</p>
-              {food.donor.phone && <p className="mb-2"><strong>Phone:</strong> {food.donor.phone}</p>}
-            </div>
-          </section>
+          {food.donor && (
+            <section className="mb-6 sm:mb-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Donor Information</h2>
+              <div className="text-sm sm:text-base text-gray-700">
+                <p className="mb-2"><strong>Name:</strong> {food.donor.name}</p>
+                <p className="mb-2"><strong>Email:</strong> {food.donor.email}</p>
+                {food.donor.phone && <p className="mb-2"><strong>Phone:</strong> {food.donor.phone}</p>}
+              </div>
+            </section>
+          )}
 
           {food.claimedBy && (
             <section className="mb-6 sm:mb-8">
@@ -215,6 +237,26 @@ const FoodDetail = () => {
             </section>
           )}
 
+          {food.volunteerAssigned && (
+            <section className="mb-6 sm:mb-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Volunteer Assigned</h2>
+              <div className="text-sm sm:text-base text-gray-700">
+                <p className="mb-2"><strong>Name:</strong> {food.volunteerAssigned.name}</p>
+                <p className="mb-2"><strong>Email:</strong> {food.volunteerAssigned.email}</p>
+                {food.volunteerAssigned.phone && <p className="mb-2"><strong>Phone:</strong> {food.volunteerAssigned.phone}</p>}
+                <p className="mb-2"><strong>Collection Status:</strong> {food.collectionStatus?.replace('_', ' ')}</p>
+              </div>
+            </section>
+          )}
+
+          {isVolunteerAssigned && !canClaim && (
+            <div className="mb-6 sm:mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-blue-800 text-sm">
+                <strong>Note:</strong> This food has been assigned to a volunteer for collection and distribution. It is no longer available for direct claiming.
+              </p>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-gray-200">
             {canClaim && (
               <>
@@ -225,9 +267,11 @@ const FoodDetail = () => {
                 >
                   {actionLoading ? 'Claiming...' : 'Claim This Food'}
                 </button>
-                <div className="w-full sm:w-auto">
-                  <ChatButton foodPostId={food._id} donorId={food.donor._id} />
-                </div>
+                {food.donor && food._id && food.donor._id && (
+                  <div className="w-full sm:w-auto">
+                    <ChatButton foodPostId={food._id} donorId={food.donor._id} />
+                  </div>
+                )}
               </>
             )}
 
@@ -241,7 +285,7 @@ const FoodDetail = () => {
               </button>
             )}
 
-            {isDonor && (
+            {isDonor && food._id && (
               <>
                 <Link to={`/food/edit/${food._id}`} className="w-full sm:w-auto text-center bg-gray-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-gray-600 transition-all duration-300 no-underline text-sm sm:text-base">
                   Edit

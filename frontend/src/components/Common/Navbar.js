@@ -1,9 +1,10 @@
 import React, { useContext, useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
+import NotificationCenter from './NotificationCenter';
 
 const Navbar = () => {
-  const { user, isAuthenticated, isVolunteer, isVolunteerOrAdmin, canApplyForVolunteer, logout } = useContext(AuthContext);
+  const { user, isAuthenticated, isVolunteer, canApplyForVolunteer, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -63,42 +64,48 @@ const Navbar = () => {
           </Link>
 
           {/* Desktop Menu */}
-          <ul className="hidden md:flex list-none gap-2 lg:gap-4 items-center">
+          <ul className="hidden lg:flex list-none gap-1 xl:gap-2 items-center">
             <li>
-              <Link to="/" className="no-underline text-gray-800 font-medium px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 text-sm lg:text-base">Browse Food</Link>
+              <Link to="/" className="no-underline text-gray-800 font-medium px-2 xl:px-3 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 text-sm whitespace-nowrap">Browse Food</Link>
             </li>
 
             {isAuthenticated ? (
               <>
                 <li>
-                  <Link to="/food/create" className="no-underline text-gray-800 font-medium px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 text-sm lg:text-base">Share Food</Link>
+                  <Link to="/dashboard" className="no-underline text-gray-800 font-medium px-2 xl:px-3 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 text-sm whitespace-nowrap">📊 Dashboard</Link>
                 </li>
                 <li>
-                  <Link to="/my-donations" className="no-underline text-gray-800 font-medium px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 text-sm lg:text-base">My Donations</Link>
+                  <Link to="/food/create" className="no-underline text-gray-800 font-medium px-2 xl:px-3 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 text-sm whitespace-nowrap">Share Food</Link>
                 </li>
                 <li>
-                  <Link to="/my-claims" className="no-underline text-gray-800 font-medium px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 text-sm lg:text-base">My Claims</Link>
+                  <Link to="/my-donations" className="no-underline text-gray-800 font-medium px-2 xl:px-3 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 text-sm whitespace-nowrap">My Donations</Link>
                 </li>
                 <li>
-                  <Link to="/messages" className="no-underline text-gray-800 font-medium px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 text-sm lg:text-base">💬 Messages</Link>
+                  <Link to="/my-claims" className="no-underline text-gray-800 font-medium px-2 xl:px-3 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 text-sm whitespace-nowrap">My Claims</Link>
+                </li>
+                <li>
+                  <Link to="/messages" className="no-underline text-gray-800 font-medium px-2 xl:px-3 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 text-sm whitespace-nowrap">💬 Messages</Link>
+                </li>
+                <li>
+                  <NotificationCenter />
                 </li>
                 {canApplyForVolunteer && (
                   <li>
-                    <Link to="/apply-volunteer" className="no-underline text-blue-600 font-medium px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-blue-50 text-sm lg:text-base">
-                      🤝 Become Volunteer
+                    <Link to="/apply-volunteer" className="no-underline text-blue-600 font-medium px-2 xl:px-3 py-2 rounded-lg transition-all duration-300 hover:bg-blue-50 text-sm whitespace-nowrap">
+                      🤝 Volunteer
                     </Link>
                   </li>
                 )}
                 {isVolunteer && (
                   <li>
-                    <Link to="/volunteer" className="no-underline text-purple-600 font-bold px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-purple-50 text-sm lg:text-base">
+                    <Link to="/volunteer" className="no-underline text-purple-600 font-bold px-2 xl:px-3 py-2 rounded-lg transition-all duration-300 hover:bg-purple-50 text-sm whitespace-nowrap">
                       🤝 Volunteer Panel
                     </Link>
                   </li>
                 )}
                 {user?.role === 'admin' && (
                   <li>
-                    <Link to="/admin" className="no-underline text-amber-500 font-bold px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 text-sm lg:text-base">
+                    <Link to="/admin" className="no-underline text-amber-500 font-bold px-2 xl:px-3 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 text-sm whitespace-nowrap">
                       🛡️ Admin
                     </Link>
                   </li>
@@ -106,9 +113,9 @@ const Navbar = () => {
                 <li className="relative" ref={dropdownRef}>
                   <button 
                     onClick={toggleDropdown}
-                    className="text-gray-800 font-medium px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 bg-transparent border-none cursor-pointer text-sm lg:text-base"
+                    className="text-gray-800 font-medium px-2 xl:px-3 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500 bg-transparent border-none cursor-pointer text-sm whitespace-nowrap max-w-[120px] truncate"
                   >
-                    {user?.name || 'Account'}
+                    {(user?.name || 'Account').split(' ')[0]}
                     {user?.role === 'admin' && <span className="ml-1 text-xs">👑</span>}
                     {user?.role === 'volunteer' && <span className="ml-1 text-xs">🤝</span>}
                     <span className="ml-1">{dropdownOpen ? '▴' : '▾'}</span>
@@ -146,7 +153,7 @@ const Navbar = () => {
           {/* Mobile Menu Button */}
           <button 
             onClick={toggleMobileMenu}
-            className="md:hidden text-gray-800 p-2 rounded-lg hover:bg-gray-100 transition-all duration-300"
+            className="lg:hidden text-gray-800 p-2 rounded-lg hover:bg-gray-100 transition-all duration-300"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? (
@@ -163,7 +170,7 @@ const Navbar = () => {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 py-4">
+          <div className="lg:hidden border-t border-gray-200 py-4">
             <ul className="flex flex-col gap-2">
               <li>
                 <Link 
@@ -177,6 +184,15 @@ const Navbar = () => {
 
               {isAuthenticated ? (
                 <>
+                  <li>
+                    <Link 
+                      to="/dashboard" 
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block no-underline text-gray-800 font-medium px-4 py-2 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:text-green-500"
+                    >
+                      📊 Dashboard
+                    </Link>
+                  </li>
                   <li>
                     <Link 
                       to="/food/create" 

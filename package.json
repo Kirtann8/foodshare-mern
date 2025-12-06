@@ -10,7 +10,15 @@
     "build": "cd frontend && npm run build",
     "install-server": "cd backend && npm install",
     "install-client": "cd frontend && npm install",
-    "install-all": "npm run install-server && npm run install-client"
+    "install-all": "npm run install-server && npm run install-client",
+    "test": "node tests/integration/cv-integration.test.js",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && npm test",
+    "start-cv": "python scripts/start_ai_service.py",
+    "start-ai": "python scripts/start_ai_service.py",
+    "start-ai-windows": "scripts\\start-enhanced-ai.bat",
+    "test-services": "node scripts/simple-test.js",
+    "lint": "cd frontend && npm run lint && cd ../backend && npm run lint"
   },
   "repository": {
     "type": "git",
@@ -28,6 +36,9 @@
   ],
   "author": "Kirtan Patel",
   "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
   "devDependencies": {
     "concurrently": "^7.6.0"
   }

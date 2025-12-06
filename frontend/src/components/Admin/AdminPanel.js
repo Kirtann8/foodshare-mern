@@ -257,6 +257,12 @@ const AdminPanel = () => {
           🎯 Volunteers
         </button>
         <button 
+          className={`flex-1 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all duration-300 whitespace-nowrap text-sm sm:text-base ${activeTab === 'assignments' ? 'bg-amber-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`} 
+          onClick={() => setActiveTab('assignments')}
+        >
+          🚚 Assignments
+        </button>
+        <button 
           className={`flex-1 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all duration-300 whitespace-nowrap text-sm sm:text-base ${activeTab === 'analytics' ? 'bg-amber-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`} 
           onClick={() => setActiveTab('analytics')}
         >
@@ -629,6 +635,17 @@ const AdminPanel = () => {
       {/* Volunteer Management Tab */}
       {activeTab === 'volunteers' && (
         <VolunteerManagement />
+      )}
+
+      {/* Volunteer Assignments Tab */}
+      {activeTab === 'assignments' && (
+        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 lg:p-8">
+          <iframe 
+            src="/admin/volunteer-assignments" 
+            className="w-full h-screen border-0 rounded-lg"
+            title="Volunteer Assignment Manager"
+          />
+        </div>
       )}
 
       {/* Overview Tab */}

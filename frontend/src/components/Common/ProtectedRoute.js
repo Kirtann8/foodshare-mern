@@ -4,7 +4,7 @@ import AuthContext from '../../context/AuthContext';
 import Loading from './Loading';
 
 const ProtectedRoute = ({ children, adminOnly = false, volunteerOnly = false }) => {
-  const { isAuthenticated, isAdmin, isVolunteer, isVolunteerOrAdmin, loading } = useContext(AuthContext);
+  const { isAuthenticated, isAdmin, isVolunteerOrAdmin, loading } = useContext(AuthContext);
 
   if (loading) {
     return <Loading />;

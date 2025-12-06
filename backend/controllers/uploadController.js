@@ -1,4 +1,5 @@
 import ErrorResponse from '../config/ErrorResponse.js';
+import { uploadToCloudinary } from '../config/cloudinary.js';
 import { v2 as cloudinary } from 'cloudinary';
 
 export const uploadImage = async (req, res, next) => {
@@ -9,10 +10,12 @@ export const uploadImage = async (req, res, next) => {
       return next(new ErrorResponse('Please upload an image', 400));
     }
 
-    // Log the file information
+    // Upload to Cloudinary
+    const result = await uploadToCloudinary(req.file.buffer);
+
     console.log('File uploaded to Cloudinary:', {
-      path: req.file.path,
-      filename: req.file.filename,
+      url: result.secure_url,
+      public_id: result.public_id,
       originalname: req.file.originalname
     });
 
@@ -20,12 +23,13 @@ export const uploadImage = async (req, res, next) => {
       success: true,
       message: 'Image uploaded successfully',
       data: {
-        url: req.file.path,
-        filename: req.file.filename,
+        url: result.secure_url,
+        public_id: result.public_id,
         originalname: req.file.originalname
       }
     });
   } catch (error) {
+    console.error('Upload error:', error);
     next(new ErrorResponse('Error uploading image', 500));
   }
 };

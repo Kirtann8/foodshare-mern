@@ -131,11 +131,28 @@ app.locals.io = io;
 io.on('connection', (socket) => {
   console.log('New socket client connected:', socket.id);
 
-  // Optional: Handle user authentication for socket
-  socket.on('authenticate', (userId) => {
-    socket.userId = userId;
-    socket.join(`user_${userId}`);
-    console.log(`User ${userId} authenticated and joined their room`);
+  // Handle user authentication for socket
+  socket.on('authenticate', async (userId) => {
+    try {
+      // Import User model dynamically to avoid circular dependency
+      const { default: User } = await import('./models/User.js');
+      const user = await User.findById(userId);
+      
+      if (user) {
+        socket.userId = userId;
+        socket.userRole = user.role;
+        
+        // Join user-specific room
+        socket.join(`user_${userId}`);
+        
+        // Join role-based room
+        socket.join(`role_${user.role}`);
+        
+        console.log(`User ${userId} (${user.role}) authenticated and joined rooms`);
+      }
+    } catch (error) {
+      console.error('Socket authentication error:', error);
+    }
   });
 
   // Chat events

@@ -22,7 +22,7 @@ const VolunteerAssignmentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['assigned', 'accepted', 'collected', 'distributed', 'completed', 'cancelled'],
+    enum: ['assigned', 'accepted', 'collected', 'distributed', 'completed', 'cancelled', 'rejected'],
     default: 'assigned'
   },
   acceptedAt: Date,
@@ -31,6 +31,8 @@ const VolunteerAssignmentSchema = new mongoose.Schema({
   completedAt: Date,
   cancelledAt: Date,
   cancellationReason: String,
+  rejectedAt: Date,
+  rejectionReason: String,
   notes: {
     type: String,
     maxlength: [1000, 'Notes cannot exceed 1000 characters']

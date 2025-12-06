@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI, communicationAPI } from '../../services/api';
 import AuthContext from '../../context/AuthContext';
@@ -8,7 +8,6 @@ import { toast } from 'react-toastify';
 
 const VolunteerPanel = () => {
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('pending');
   const [pendingPosts, setPendingPosts] = useState([]);
   const [assignedPosts, setAssignedPosts] = useState([]);
@@ -22,27 +21,12 @@ const VolunteerPanel = () => {
     assignedCount: 0,
     approvedToday: 0
   });
-  
-  // New state for Phase 3 features
-  const [showPickupModal, setShowPickupModal] = useState(false);
-  const [showDistributionModal, setShowDistributionModal] = useState(false);
-  const [selectedAssignment, setSelectedAssignment] = useState(null);
-  const [pickupData, setPickupData] = useState({
-    proposedTime: '',
-    message: ''
-  });
-  const [distributionData, setDistributionData] = useState({
-    recipientCount: 1,
-    distributionLocation: '',
-    distributionNotes: '',
-    recipientFeedback: ''
-  });
 
   useEffect(() => {
     fetchData();
-  }, [activeTab]);
+  }, [activeTab, fetchData]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -52,8 +36,8 @@ const VolunteerPanel = () => {
         setPendingPosts(response.data);
         setStats(prev => ({ ...prev, pendingCount: response.total }));
       } else if (activeTab === 'assigned') {
-        // Use the new dedicated endpoint for volunteer assignments
-        const response = await adminAPI.getVolunteerAssignments();
+        // Get food posts assigned to current volunteer
+        const response = await adminAPI.getAssignedFoods();
         setAssignedPosts(response.data);
         setStats(prev => ({ ...prev, assignedCount: response.total }));
       }
@@ -63,7 +47,7 @@ const VolunteerPanel = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
 
   const handleApprove = async (postId) => {
     try {
@@ -103,65 +87,7 @@ const VolunteerPanel = () => {
     }
   };
 
-  const handleAcceptAssignment = async (assignmentId) => {
-    try {
-      await adminAPI.acceptAssignment(assignmentId);
-      toast.success('Assignment accepted successfully!');
-      fetchData();
-    } catch (err) {
-      toast.error(err.error || 'Failed to accept assignment');
-    }
-  };
 
-  const handleSchedulePickup = async () => {
-    if (!pickupData.proposedTime) {
-      toast.error('Please select a pickup time');
-      return;
-    }
-
-    try {
-      await communicationAPI.schedulePickupCoordination(selectedAssignment.foodPost._id, pickupData);
-      toast.success('Pickup coordination email sent to donor!');
-      setShowPickupModal(false);
-      setPickupData({ proposedTime: '', message: '' });
-      setSelectedAssignment(null);
-    } catch (err) {
-      toast.error(err.error || 'Failed to schedule pickup');
-    }
-  };
-
-  const handleReportDistribution = async () => {
-    if (!distributionData.recipientCount || distributionData.recipientCount < 1) {
-      toast.error('Please enter a valid recipient count');
-      return;
-    }
-
-    try {
-      await communicationAPI.reportDistributionCompletion(selectedAssignment.foodPost._id, distributionData);
-      toast.success('Distribution report sent successfully!');
-      setShowDistributionModal(false);
-      setDistributionData({
-        recipientCount: 1,
-        distributionLocation: '',
-        distributionNotes: '',
-        recipientFeedback: ''
-      });
-      setSelectedAssignment(null);
-      fetchData();
-    } catch (err) {
-      toast.error(err.error || 'Failed to report distribution');
-    }
-  };
-
-  const openPickupModal = (assignment) => {
-    setSelectedAssignment(assignment);
-    setShowPickupModal(true);
-  };
-
-  const openDistributionModal = (assignment) => {
-    setSelectedAssignment(assignment);
-    setShowDistributionModal(true);
-  };
 
   const openRejectModal = (postId) => {
     setSelectedPostId(postId);
@@ -231,6 +157,22 @@ const VolunteerPanel = () => {
           onClick={() => setActiveTab('assigned')}
         >
           📋 My Collections
+        </button>
+        <button 
+          className={`flex-1 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all duration-300 text-sm sm:text-base ${
+            activeTab === 'assignments' ? 'bg-purple-500 text-white' : 'text-gray-700 hover:bg-gray-100'
+          }`} 
+          onClick={() => navigate('/volunteer/assignments')}
+        >
+          🚚 My Assignments
+        </button>
+        <button 
+          className={`flex-1 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all duration-300 text-sm sm:text-base ${
+            activeTab === 'approvals' ? 'bg-purple-500 text-white' : 'text-gray-700 hover:bg-gray-100'
+          }`} 
+          onClick={() => navigate('/admin/food-approval')}
+        >
+          ✅ Food Approvals
         </button>
       </div>
 
@@ -366,13 +308,31 @@ const VolunteerPanel = () => {
           ) : (
             <div className="space-y-6">
               {assignedPosts.map((post) => (
-                <div key={post._id} className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                <div key={post._id || post.assignmentId} className="bg-gray-50 rounded-xl p-6 border border-gray-200">
                   <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Food Image */}
+                    {post.images && post.images.length > 0 && (
+                      <div className="lg:w-1/4">
+                        <img 
+                          src={post.images[0]} 
+                          alt={post.title}
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+                      </div>
+                    )}
+                    
                     <div className="flex-1">
                       <div className="flex items-start justify-between mb-4">
                         <div>
                           <h3 className="text-xl font-bold text-gray-900 mb-2">{post.title}</h3>
+                          <p className="text-gray-600 mb-2 text-sm">{post.description}</p>
                           <div className="flex flex-wrap gap-2 mb-3">
+                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium">
+                              {post.category}
+                            </span>
+                            <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm font-medium">
+                              {post.quantity}
+                            </span>
                             <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                               post.collectionStatus === 'assigned' ? 'bg-yellow-100 text-yellow-800' :
                               post.collectionStatus === 'collected' ? 'bg-blue-100 text-blue-800' :
@@ -382,7 +342,7 @@ const VolunteerPanel = () => {
                               {post.collectionStatus === 'assigned' && '📋 Assigned'}
                               {post.collectionStatus === 'collected' && '📦 Collected'}
                               {post.collectionStatus === 'distributed' && '✅ Distributed'}
-                              {post.collectionStatus === 'not_assigned' && '⏳ Not Assigned'}
+                              {!post.collectionStatus && '⏳ Pending'}
                             </span>
                           </div>
                         </div>
@@ -391,14 +351,27 @@ const VolunteerPanel = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                           <h4 className="font-medium text-gray-700 mb-1">Donor Contact:</h4>
-                          <p className="text-gray-600">{post.donor?.name}</p>
-                          <p className="text-gray-500 text-sm">{post.donor?.email}</p>
-                          {post.donor?.phone && <p className="text-gray-500 text-sm">{post.donor.phone}</p>}
+                          <p className="text-gray-600">{post.donor?.name || 'Contact not available'}</p>
+                          <p className="text-gray-500 text-sm">{post.donor?.email || 'Email not available'}</p>
+                          <p className="text-gray-500 text-sm">{post.donor?.phone || 'Phone not available'}</p>
                         </div>
                         <div>
                           <h4 className="font-medium text-gray-700 mb-1">Pickup Location:</h4>
-                          <p className="text-gray-600 text-sm">{post.location?.address}</p>
-                          <p className="text-gray-500 text-sm">{post.location?.city}, {post.location?.state}</p>
+                          <p className="text-gray-600 text-sm">{post.location?.address || 'Address not available'}</p>
+                          <p className="text-gray-500 text-sm">{post.location?.city || 'City not available'}, {post.location?.state || 'State not available'}</p>
+                          {post.location?.zipCode && <p className="text-gray-500 text-sm">ZIP: {post.location.zipCode}</p>}
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-700 mb-1">Pickup Time:</h4>
+                          <p className="text-gray-600 text-sm">
+                            {post.pickupTiming?.startTime ? formatDate(post.pickupTiming.startTime) : 'N/A'} - 
+                            {post.pickupTiming?.endTime ? formatDate(post.pickupTiming.endTime) : 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-700 mb-1">Assignment Status:</h4>
+                          <p className="text-gray-600 text-sm">{post.assignmentStatus || 'assigned'}</p>
+                          {post.assignedAt && <p className="text-gray-500 text-xs">Assigned: {formatDate(post.assignedAt)}</p>}
                         </div>
                       </div>
                     </div>
@@ -406,12 +379,26 @@ const VolunteerPanel = () => {
                     {/* Status Update Buttons */}
                     <div className="lg:w-48 flex flex-col gap-3">
                       {post.collectionStatus === 'assigned' && (
-                        <button
-                          onClick={() => handleUpdateCollectionStatus(post._id, 'collected')}
-                          className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all duration-300"
-                        >
-                          📦 Mark Collected
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleUpdateCollectionStatus(post._id, 'collected')}
+                            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all duration-300"
+                          >
+                            📦 Mark Collected
+                          </button>
+                          <button
+                            onClick={() => {
+                              const reason = prompt('Please provide a reason for rejecting this assignment:');
+                              if (reason && reason.trim()) {
+                                // Handle rejection logic here
+                                alert('Assignment rejection functionality will be implemented');
+                              }
+                            }}
+                            className="w-full px-4 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-all duration-300"
+                          >
+                            ❌ Reject Assignment
+                          </button>
+                        </>
                       )}
                       {post.collectionStatus === 'collected' && (
                         <button

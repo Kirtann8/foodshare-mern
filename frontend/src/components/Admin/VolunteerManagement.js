@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { adminAPI, communicationAPI } from '../../services/api';
 import Loading from '../Common/Loading';
 import ErrorMessage from '../Common/ErrorMessage';
@@ -27,9 +27,9 @@ const VolunteerManagement = () => {
 
   useEffect(() => {
     fetchData();
-  }, [activeTab]);
+  }, [activeTab, fetchData]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -56,7 +56,7 @@ const VolunteerManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
 
   const handleAutoAssign = async () => {
     try {

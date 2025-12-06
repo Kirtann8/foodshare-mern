@@ -21,7 +21,13 @@ import {
   autoAssignVolunteers,
   getVolunteerAssignments,
   acceptAssignment,
-  getAvailableVolunteers
+  rejectAssignment,
+  getAvailableVolunteers,
+  assessFoodQuality,
+  checkAIServiceStatus,
+  getAIModelsStatus,
+  testAIService,
+  getAssignedFoods
 } from '../controllers/foodController.js';
 
 const router = express.Router();
@@ -68,8 +74,18 @@ router.post('/auto-assign', protect, authorize('admin'), autoAssignVolunteers);
 // Volunteer assignment management
 router.get('/volunteer/assignments', protect, authorizeVolunteerOrAdmin, getVolunteerAssignments);
 router.put('/volunteer/assignments/:id/accept', protect, authorizeVolunteerOrAdmin, acceptAssignment);
+router.put('/volunteer/assignments/:id/reject', protect, authorizeVolunteerOrAdmin, rejectAssignment);
 
 // Available volunteers (Admin only)
 router.get('/volunteers/available', protect, authorize('admin'), getAvailableVolunteers);
+
+// Enhanced AI food quality assessment
+router.post('/assess-quality', protect, assessFoodQuality);
+router.get('/ai-status', protect, checkAIServiceStatus);
+router.get('/ai-models', protect, authorize('admin'), getAIModelsStatus);
+router.post('/test-ai', protect, authorize('admin'), testAIService);
+
+// Get assigned foods for volunteer
+router.get('/volunteer/assigned-foods', protect, authorizeVolunteerOrAdmin, getAssignedFoods);
 
 export default router;
